@@ -5,4 +5,4 @@ class Post(models.Model):
 	created_at = models.DateTimeField("date created")
 
 	def __unicode__(self):
-        return self.text
+		return self.text
