@@ -151,3 +151,9 @@ LOGGING = {
         },
     }
 }
+
+#South settings
+SOUTH_MIGRATION_MODULES = {
+    'microblog_app': 'ignore',
+    'tastypie': 'ignore',
+}
