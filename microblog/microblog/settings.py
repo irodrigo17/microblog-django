@@ -118,6 +118,7 @@ INSTALLED_APPS = (
     'south',
     'microblog_app',
     'django.contrib.admin',
+    'tastypie',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
 )
