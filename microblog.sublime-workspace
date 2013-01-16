@@ -27,24 +27,15 @@
 			"file": "microblog/microblog/settings.py",
 			"settings":
 			{
-				"buffer_size": 5343,
+				"buffer_size": 5437,
 				"line_ending": "Unix"
-			}
-		},
-		{
-			"contents": "python manage.py sqlclear microblog_app | python manage.py dbshell",
-			"settings":
-			{
-				"buffer_size": 66,
-				"line_ending": "Unix",
-				"name": "python manage.py sqlclear microblog_app | python m"
 			}
 		},
 		{
 			"file": "microblog/microblog_app/models.py",
 			"settings":
 			{
-				"buffer_size": 482,
+				"buffer_size": 759,
 				"line_ending": "Unix"
 			}
 		},
@@ -60,7 +51,7 @@
 			"file": "microblog/microblog_app/api.py",
 			"settings":
 			{
-				"buffer_size": 526,
+				"buffer_size": 943,
 				"line_ending": "Unix",
 				"name": "from tastypie.resources import ModelResource"
 			}
@@ -69,9 +60,17 @@
 			"file": "microblog/microblog_app/admin.py",
 			"settings":
 			{
-				"buffer_size": 123,
+				"buffer_size": 129,
 				"line_ending": "Unix",
 				"name": "from django.contrib import admin"
+			}
+		},
+		{
+			"file": "microblog/api-requests.py",
+			"settings":
+			{
+				"buffer_size": 960,
+				"line_ending": "Unix"
 			}
 		}
 	],
@@ -99,6 +98,8 @@
 	},
 	"file_history":
 	[
+		"/Users/irodrigo/github/microblog-django/microblog/microblog_app/curl-requests",
+		"/Users/irodrigo/github/microblog-django/microblog/microblog_app/api-requests.py",
 		"/Users/irodrigo/Desktop/miPlan/show1.php",
 		"/Users/irodrigo/Desktop/miPlan/scrapAjaxHandler.php",
 		"/Users/irodrigo/Desktop/miPlan/iframe.php",
@@ -137,7 +138,7 @@
 	"groups":
 	[
 		{
-			"selected": 2,
+			"selected": 5,
 			"sheets":
 			[
 				{
@@ -145,15 +146,15 @@
 					"file": "microblog/microblog/settings.py",
 					"settings":
 					{
-						"buffer_size": 5343,
+						"buffer_size": 5437,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								5340,
-								5340
+								761,
+								828
 							]
 						],
 						"settings":
@@ -170,23 +171,24 @@
 				},
 				{
 					"buffer": 1,
+					"file": "microblog/microblog_app/models.py",
 					"settings":
 					{
-						"buffer_size": 66,
+						"buffer_size": 759,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								66,
-								0
+								707,
+								707
 							]
 						],
 						"settings":
 						{
-							"auto_name": "python manage.py sqlclear microblog_app | python m",
-							"syntax": "Packages/Text/Plain text.tmLanguage"
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
 						"translation.y": 0.0,
@@ -196,18 +198,18 @@
 				},
 				{
 					"buffer": 2,
-					"file": "microblog/microblog_app/models.py",
+					"file": "microblog/microblog/urls.py",
 					"settings":
 					{
-						"buffer_size": 482,
+						"buffer_size": 706,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								159,
-								159
+								30,
+								0
 							]
 						],
 						"settings":
@@ -222,23 +224,25 @@
 				},
 				{
 					"buffer": 3,
-					"file": "microblog/microblog/urls.py",
+					"file": "microblog/microblog_app/api.py",
 					"settings":
 					{
-						"buffer_size": 706,
+						"buffer_size": 943,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								149,
-								149
+								943,
+								943
 							]
 						],
 						"settings":
 						{
-							"syntax": "Packages/Python/Python.tmLanguage"
+							"auto_name": "from tastypie.resources import ModelResource",
+							"syntax": "Packages/Python/Python.tmLanguage",
+							"translate_tabs_to_spaces": false
 						},
 						"translation.x": 0.0,
 						"translation.y": 0.0,
@@ -248,23 +252,23 @@
 				},
 				{
 					"buffer": 4,
-					"file": "microblog/microblog_app/api.py",
+					"file": "microblog/microblog_app/admin.py",
 					"settings":
 					{
-						"buffer_size": 526,
+						"buffer_size": 129,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								421,
-								421
+								104,
+								129
 							]
 						],
 						"settings":
 						{
-							"auto_name": "from tastypie.resources import ModelResource",
+							"auto_name": "from django.contrib import admin",
 							"syntax": "Packages/Python/Python.tmLanguage"
 						},
 						"translation.x": 0.0,
@@ -275,23 +279,22 @@
 				},
 				{
 					"buffer": 5,
-					"file": "microblog/microblog_app/admin.py",
+					"file": "microblog/api-requests.py",
 					"settings":
 					{
-						"buffer_size": 123,
+						"buffer_size": 960,
 						"regions":
 						{
 						},
 						"selection":
 						[
 							[
-								122,
-								122
+								921,
+								921
 							]
 						],
 						"settings":
 						{
-							"auto_name": "from django.contrib import admin",
 							"syntax": "Packages/Python/Python.tmLanguage"
 						},
 						"translation.x": 0.0,
