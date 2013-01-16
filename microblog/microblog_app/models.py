@@ -18,6 +18,15 @@ class Post(models.Model):
 	user = models.ForeignKey(User)
 	in_reply_to = models.ForeignKey('Post', related_name='replies', blank=True, null=True)
 
+	def liked_by_count(self):
+		return self.liked_by.count
+
+	def shared_by_count(self):
+		return self.shared_by.count
+
+	def replies_count(self):
+		return self.replies.count		
+
 	def __unicode__(self):
 		return self.text
 
