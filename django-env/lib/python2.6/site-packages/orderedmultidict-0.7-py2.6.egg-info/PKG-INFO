@@ -1,0 +1,25 @@
+Metadata-Version: 1.0
+Name: orderedmultidict
+Version: 0.7
+Summary: OrderedMultiDict: Ordered Multivalue Dictionary
+Home-page: https://github.com/gruns/orderedmultidict
+Author: Arthur Grunseid
+Author-email: grunseid@gmail.com
+License: Unlicense
+Description: omdict: Ordered Multivalue Dictionary.
+        
+        A multivalue dictionary is a dictionary that can store multiple values for the
+        same key. An ordered multivalue dictionary is a multivalue dictionary that
+        retains the order of insertions and deletions.
+        
+        omdict retains method parity with dict.
+        
+        Information and documentation at: https://github.com/gruns/orderedmultidict
+Platform: any
+Classifier: Topic :: Software Development :: Libraries
+Classifier: Natural Language :: English
+Classifier: Development Status :: 4 - Beta
+Classifier: Intended Audience :: Developers
+Classifier: License :: Freely Distributable
+Classifier: Programming Language :: Python :: 2.6
+Classifier: Programming Language :: Python :: 2.7
