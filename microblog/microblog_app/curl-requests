@@ -1,0 +1,1 @@
+curl -i -H "Content-Type: application/json" -H "Accept: application/json" -X GET --data "{"username":"newuser"}" http://localhost:8000/api/v1/user/
