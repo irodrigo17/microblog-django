@@ -1,6 +1,6 @@
 from django.conf.urls import *
 from tastypie.api import Api
-from microblog_app.api import PostResource, UserResource
+from microblog_app.api import *
 from django.contrib import admin
 
 # Init admin
@@ -10,6 +10,9 @@ admin.autodiscover()
 v1_api = Api(api_name='v1')
 v1_api.register(UserResource())
 v1_api.register(PostResource())
+v1_api.register(FollowResource())
+v1_api.register(LikeResource())
+v1_api.register(ShareResource())
 
 # define URL patterns
 urlpatterns = patterns('',

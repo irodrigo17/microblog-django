@@ -1,32 +1,68 @@
 from django.db import models
 from django.contrib import auth
 
+
 class User(auth.models.User):
-	follows = models.ManyToManyField('User', related_name='followed_by', blank=True, symmetrical=False)
-	likes = models.ManyToManyField('Post', related_name='liked_by', blank=True)
-	shares = models.ManyToManyField('Post', related_name='shared_by', blank=True)
+	follows = models.ManyToManyField('User', through='Follow', blank=True, symmetrical=False)
+	likes = models.ManyToManyField('Post', through='Like', blank=True, related_name="liked_by")
+	shares = models.ManyToManyField('Post', through='Share', blank=True, related_name="shared_by")
 
 	def following_count(self):
-		return self.following.count()
+		return self.follows.count()
 
 	def followers_count(self):
-		return self.following_set.count()
+		return self.followed_by.count()
+
+	def full_name(self):
+		return self.first_name + ' ' + self.last_name
+
+	def __unicode__(self):
+		return self.username
+
 
 class Post(models.Model):
-	text = models.CharField(max_length=200)
-	created_at = models.DateTimeField("date created")
 	user = models.ForeignKey(User)
 	in_reply_to = models.ForeignKey('Post', related_name='replies', blank=True, null=True)
+	text = models.CharField(max_length=200)
+	created_date = models.DateTimeField("date created", auto_now_add=True)
+	modified_date = models.DateTimeField("date modified", auto_now=True)	
 
 	def liked_by_count(self):
-		return self.liked_by.count
+		return self.liked_by.count()
 
 	def shared_by_count(self):
-		return self.shared_by.count
+		return self.shared_by.count()
 
 	def replies_count(self):
-		return self.replies.count		
+		return self.replies.count()
 
 	def __unicode__(self):
 		return self.text
+
+
+class Follow(models.Model):
+	follower = models.ForeignKey(User, related_name='following')
+	followee = models.ForeignKey(User, related_name='followed_by')
+	created_date = models.DateTimeField(blank=True, auto_now_add=True)
+
+	def __unicode__(self):
+		return str(self.follower) + ' follows ' + str(self.followee)
+
+
+class Like(models.Model):
+	user = models.ForeignKey(User)
+	post = models.ForeignKey(Post)
+	created_date = models.DateTimeField("date created", auto_now_add=True)
+
+	def __unicode__(self):
+		return str(self.user) + ' likes ' + str(self.post)
+
+
+class Share(models.Model):
+	user = models.ForeignKey(User)
+	post = models.ForeignKey(Post)
+	created_date = models.DateTimeField("date created", auto_now_add=True)
+
+	def __unicode__(self):
+		return str(self.user) + ' shares ' + str(self.post)
 

@@ -1,16 +1,10 @@
-"""
-This file demonstrates writing tests using the unittest module. These will pass
-when you run "manage.py test".
-
-Replace this with more appropriate tests for your application.
-"""
-
 from django.test import TestCase
+from microblog_app.models import *
 
 
-class SimpleTest(TestCase):
-    def test_basic_addition(self):
-        """
-        Tests that 1 + 1 always equals 2.
-        """
-        self.assertEqual(1 + 1, 2)
+class UserTest(TestCase):
+    def test_full_name(self):
+    	u = User(first_name="John", last_name="Doe")
+        self.assertEqual(u.full_name(), "John Doe")
+        # TODO: add more tests!
+
