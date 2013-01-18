@@ -13,6 +13,7 @@ v1_api.register(PostResource())
 v1_api.register(FollowResource())
 v1_api.register(LikeResource())
 v1_api.register(ShareResource())
+v1_api.register(LoginResource())
 
 # define URL patterns
 urlpatterns = patterns('',

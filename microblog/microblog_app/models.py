@@ -1,6 +1,6 @@
 from django.db import models
 from django.contrib import auth
-
+from tastypie.models import create_api_key
 
 class User(auth.models.User):
 	follows = models.ManyToManyField('User', through='Follow', blank=True, symmetrical=False)
@@ -18,6 +18,9 @@ class User(auth.models.User):
 
 	def __unicode__(self):
 		return self.username
+
+# Hook tastypie's create_api_key signal to the User model.
+models.signals.post_save.connect(create_api_key, sender=User)
 
 
 class Post(models.Model):
