@@ -117,7 +117,6 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'south',
     'microblog_app',
     'django.contrib.admin',
     'tastypie',
@@ -152,10 +151,4 @@ LOGGING = {
             'propagate': True,
         },
     }
-}
-
-#South settings
-SOUTH_MIGRATION_MODULES = {
-    'microblog_app': 'ignore',
-    'tastypie': 'ignore',
 }
