@@ -2,6 +2,7 @@ from django.conf.urls import *
 from tastypie.resources import *
 from tastypie import fields
 from tastypie.authentication import *
+from tastypie.authorization import *
 from tastypie.utils import trailing_slash
 from microblog_app.models import *
 
@@ -14,7 +15,8 @@ class UserResource(ModelResource):
 		queryset = User.objects.all()
 		resource_name = 'user'
 		fields = ['username', 'first_name', 'last_name', 'email', 'id']
-		authentication = ApiKeyAuthentication()
+		authentication = Authentication()
+		authorization = Authorization()
 
 	# # Overriding this method to set password properly using set_password
 	# def obj_create(self, bundle, request=None, **kwargs):
@@ -25,16 +27,17 @@ class UserResource(ModelResource):
 
 class PostResource(ModelResource):
 	user = fields.ForeignKey(UserResource, 'user')
-	replies = fields.ToManyField('microblog_app.api.PostResource', 'replies', null=True, full=True, blank=True)
 	in_reply_to = fields.ForeignKey('microblog_app.api.PostResource', 'in_reply_to', null=True, blank=True)
 
 	likes = fields.IntegerField(attribute='liked_by_count', readonly=True)
 	shares = fields.IntegerField(attribute='shared_by_count', readonly=True)
+	replies = fields.IntegerField(attribute='replies_count', readonly=True)
 
 	class Meta:
 		queryset = Post.objects.all()
 		resource_name = 'post'
-		authentication = ApiKeyAuthentication()
+		authentication = Authentication()
+		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),
 		}
@@ -46,7 +49,7 @@ class FollowResource(ModelResource):
 	class Meta:
 		queryset = Follow.objects.all()
 		resource_name = 'follow'
-		authentication = ApiKeyAuthentication()
+		# authentication = ApiKeyAuthentication()
 		filtering = {
 			"follower": ('exact',),
 			"followee": ('exact',),
@@ -59,7 +62,8 @@ class LikeResource(ModelResource):
 	class Meta:
 		queryset = Like.objects.all()
 		resource_name = 'like'
-		authentication = ApiKeyAuthentication()
+		authentication = Authentication()
+		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),
 			"post": ('exact',),
@@ -72,7 +76,8 @@ class ShareResource(ModelResource):
 	class Meta:
 		queryset = Share.objects.all()
 		resource_name = 'share'
-		authentication = ApiKeyAuthentication()
+		authentication = Authentication()
+		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),
 			"post": ('exact',),
@@ -81,7 +86,7 @@ class ShareResource(ModelResource):
 class LoginResource(Resource):
     """
 	Used to obtain the API key assigned to a user for a period of time, using
-	his username and password.
+	his email and password.
 	"""
 
     class Meta:
@@ -99,8 +104,8 @@ class LoginResource(Resource):
 		Validate that the appropriate parameters are received.
 		"""
         errors = []
-        if not 'username' in data:
-            errors.append('You must provide an "username" field.')
+        if not 'email' in data:
+            errors.append('You must provide an "email" field.')
         if not 'password' in data:
             errors.append('You must provide a "password" field.')
         return errors
@@ -116,11 +121,11 @@ class LoginResource(Resource):
         if errors:
             return self.error_response(errors, request)
 
-        username = deserialized['username']
+        email = deserialized['email']
         password = deserialized['password']
 
         try:
-            user = User.objects.get(username=username)
+            user = User.objects.get(email=email)
         except User.DoesNotExist:
             return self.create_response(request, 'Invalid user.',
                                         http.HttpUnauthorized)
