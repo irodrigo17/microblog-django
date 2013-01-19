@@ -18,12 +18,12 @@ class UserResource(ModelResource):
 		authentication = Authentication()
 		authorization = Authorization()
 
-	# # Overriding this method to set password properly using set_password
-	# def obj_create(self, bundle, request=None, **kwargs):
-	# 	bundle = super.obj_create(bundle, request, **kwargs)
-	# 	bundle.obj.set_password(bundle.data.get('password'))
-	# 	bundle.obj.save()
-	# 	return bundle
+	# Overriding this method to set password properly using set_password
+	def obj_create(self, bundle, request=None, **kwargs):
+		bundle = super(UserResource, self).obj_create(bundle, request, **kwargs)
+		bundle.obj.set_password(bundle.data.get('password'))
+		bundle.obj.save() 
+		return bundle
 
 class PostResource(ModelResource):
 	user = fields.ForeignKey(UserResource, 'user')
@@ -133,7 +133,7 @@ class LoginResource(Resource):
             return self.create_response(request, 'Your account is disabled.',
                                         http.HttpUnauthorized)
 
-        if not user.password == password:
+        if not user.check_password(password):
             return self.create_response(request, 'Incorrect password.',
                                         http.HttpUnauthorized)
 
