@@ -1,12 +1,15 @@
 from django.db import models
 from django.contrib import auth
+from django.core.exceptions import ValidationError
 from tastypie.models import create_api_key
 
+
 class User(auth.models.User):
+
 	follows = models.ManyToManyField('User', through='Follow', blank=True, symmetrical=False)
 	likes = models.ManyToManyField('Post', through='Like', blank=True, related_name="liked_by")
 	shares = models.ManyToManyField('Post', through='Share', blank=True, related_name="shared_by")
-
+	
 	def following_count(self):
 		return self.follows.count()
 
@@ -15,6 +18,13 @@ class User(auth.models.User):
 
 	def full_name(self):
 		return self.first_name + ' ' + self.last_name
+
+	# Overriding to add check for min password length.
+	def set_password(self, raw_password):
+		MIN_RAW_PASSWORD_LENGTH = 4
+		if len(raw_password) < MIN_RAW_PASSWORD_LENGTH:
+			raise ValidationError(u'Password is too short, at least %d characters required.' % MIN_RAW_PASSWORD_LENGTH)
+		super(User, self).set_password(raw_password)
 
 	def __unicode__(self):
 		return self.username
@@ -53,6 +63,10 @@ class Follow(models.Model):
 
 
 class Like(models.Model):
+
+	class Meta:
+		unique_together = ("user", "post")
+
 	user = models.ForeignKey(User)
 	post = models.ForeignKey(Post)
 	created_date = models.DateTimeField("date created", auto_now_add=True)

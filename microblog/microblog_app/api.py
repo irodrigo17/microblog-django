@@ -1,10 +1,23 @@
 from django.conf.urls import *
+from django.db import IntegrityError
 from tastypie.resources import *
 from tastypie import fields
 from tastypie.authentication import *
 from tastypie.authorization import *
 from tastypie.utils import trailing_slash
 from microblog_app.models import *
+import logging
+
+
+# ApiKeyAuthentication with 'free' (unauthenticated) POST.
+class FreePostApiKeyAuthentication(ApiKeyAuthentication):
+
+	def is_authenticated(self, request, **kwargs):
+		return request.method == 'POST' or super(FreePostApiKeyAuthentication, self).is_authenticated(request, **kwargs)
+
+    # Optional but recommended
+	def get_identifier(self, request):
+		return request.user.username
 
 
 class UserResource(ModelResource):
@@ -15,14 +28,24 @@ class UserResource(ModelResource):
 		queryset = User.objects.all()
 		resource_name = 'user'
 		fields = ['username', 'first_name', 'last_name', 'email', 'id']
-		authentication = Authentication()
+		authentication = FreePostApiKeyAuthentication()
 		authorization = Authorization()
+		filtering = {
+			"username": ('exact',), # Needed for ApiKeyAuthorization to work.
+		}
 
-	# Overriding this method to set password properly using set_password
+	@transaction.commit_on_success
 	def obj_create(self, bundle, request=None, **kwargs):
-		bundle = super(UserResource, self).obj_create(bundle, request, **kwargs)
-		bundle.obj.set_password(bundle.data.get('password'))
-		bundle.obj.save() 
+		'''
+		Overriding this method to set password properly using set_password
+		It needs to be transactional so django.contrib.auth.models.User instances don't remain on the DB if something goes wrong.
+		'''
+		try:
+			bundle = super(UserResource, self).obj_create(bundle, request, **kwargs)
+			bundle.obj.set_password(bundle.data.get('password'))
+			bundle.obj.save() 
+		except IntegrityError:
+			raise BadRequest('The username already exists')
 		return bundle
 
 class PostResource(ModelResource):
@@ -33,14 +56,19 @@ class PostResource(ModelResource):
 	shares = fields.IntegerField(attribute='shared_by_count', readonly=True)
 	replies = fields.IntegerField(attribute='replies_count', readonly=True)
 
+	liked_by_current_user = fields.BooleanField(readonly=True)
+
 	class Meta:
 		queryset = Post.objects.all()
 		resource_name = 'post'
-		authentication = Authentication()
+		authentication = ApiKeyAuthentication()
 		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),
 		}
+
+	def dehydrate_liked_by_current_user(self, bundle):
+		return Like.objects.filter(user=bundle.request.user).exists()
 
 class FollowResource(ModelResource):
 	follower = fields.ForeignKey(UserResource, 'follower')
@@ -49,7 +77,7 @@ class FollowResource(ModelResource):
 	class Meta:
 		queryset = Follow.objects.all()
 		resource_name = 'follow'
-		# authentication = ApiKeyAuthentication()
+		authentication = ApiKeyAuthentication()
 		filtering = {
 			"follower": ('exact',),
 			"followee": ('exact',),
@@ -62,7 +90,7 @@ class LikeResource(ModelResource):
 	class Meta:
 		queryset = Like.objects.all()
 		resource_name = 'like'
-		authentication = Authentication()
+		authentication = ApiKeyAuthentication()
 		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),
@@ -76,7 +104,7 @@ class ShareResource(ModelResource):
 	class Meta:
 		queryset = Share.objects.all()
 		resource_name = 'share'
-		authentication = Authentication()
+		authentication = ApiKeyAuthentication()
 		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),
@@ -104,8 +132,8 @@ class LoginResource(Resource):
 		Validate that the appropriate parameters are received.
 		"""
         errors = []
-        if not 'email' in data:
-            errors.append('You must provide an "email" field.')
+        if not 'username' in data:
+            errors.append('You must provide an "username" field.')
         if not 'password' in data:
             errors.append('You must provide a "password" field.')
         return errors
@@ -121,11 +149,11 @@ class LoginResource(Resource):
         if errors:
             return self.error_response(errors, request)
 
-        email = deserialized['email']
+        username = deserialized['username']
         password = deserialized['password']
 
         try:
-            user = User.objects.get(email=email)
+            user = User.objects.get(username=username)
         except User.DoesNotExist:
             return self.create_response(request, 'Invalid user.',
                                         http.HttpUnauthorized)
