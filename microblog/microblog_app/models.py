@@ -20,6 +20,7 @@ class User(auth.models.User):
 		return self.first_name + ' ' + self.last_name
 
 	# Overriding to add check for min password length.
+	# TODO: check if this can be done in a more elegant way (by adding a MinLengthValidator to the password field for example).
 	def set_password(self, raw_password):
 		MIN_RAW_PASSWORD_LENGTH = 4
 		if len(raw_password) < MIN_RAW_PASSWORD_LENGTH:
@@ -54,6 +55,10 @@ class Post(models.Model):
 
 
 class Follow(models.Model):
+
+	class Meta:
+		unique_together = ("follower", "followee")		
+
 	follower = models.ForeignKey(User, related_name='following')
 	followee = models.ForeignKey(User, related_name='followed_by')
 	created_date = models.DateTimeField(blank=True, auto_now_add=True)
@@ -61,6 +66,14 @@ class Follow(models.Model):
 	def __unicode__(self):
 		return str(self.follower) + ' follows ' + str(self.followee)
 
+	# Overriding save to enforce a non erflexive relation.
+	# TODO: investigate the bulk update case that this may be missing.
+	def save(self, *args, **kwargs):
+		# Validate non-reflexive relation.
+		if self.followee == self.follower:
+			raise ValidationError("Can't follow yourself")
+		# Call actual save.
+		super(Follow, self).save(*args, **kwargs)
 
 class Like(models.Model):
 
