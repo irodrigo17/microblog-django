@@ -8,6 +8,7 @@ from tastypie.utils import trailing_slash
 from microblog_app.models import *
 import logging
 
+# TODO: Add authorization.
 
 # ApiKeyAuthentication with 'free' (unauthenticated) POST.
 class FreePostApiKeyAuthentication(ApiKeyAuthentication):
@@ -24,6 +25,8 @@ class UserResource(ModelResource):
 	followers = fields.IntegerField(attribute='followers_count', readonly=True)
 	following = fields.IntegerField(attribute='following_count', readonly=True)
 
+	followed_by_current_user = fields.BooleanField(readonly=True)
+
 	class Meta:
 		queryset = User.objects.all()
 		resource_name = 'user'
@@ -34,7 +37,7 @@ class UserResource(ModelResource):
 			"username": ('exact',), # Needed for ApiKeyAuthorization to work.
 		}
 
-	@transaction.commit_on_success
+	@transaction.commit_on_success # TODO: enforce this at DB level instead of API level.
 	def obj_create(self, bundle, request=None, **kwargs):
 		'''
 		Overriding this method to set password properly using set_password
@@ -47,6 +50,9 @@ class UserResource(ModelResource):
 		except IntegrityError:
 			raise BadRequest('The username already exists')
 		return bundle
+
+	def dehydrate_followed_by_current_user(self, bundle):
+		return Follow.objects.filter(follower=bundle.request.user, followee=bundle.obj).exists()
 
 class PostResource(ModelResource):
 	user = fields.ForeignKey(UserResource, 'user')
@@ -78,6 +84,7 @@ class FollowResource(ModelResource):
 		queryset = Follow.objects.all()
 		resource_name = 'follow'
 		authentication = ApiKeyAuthentication()
+		authorization = Authorization()
 		filtering = {
 			"follower": ('exact',),
 			"followee": ('exact',),
