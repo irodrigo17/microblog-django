@@ -68,7 +68,7 @@ class PostResource(ModelResource):
 		}
 
 	def dehydrate_liked_by_current_user(self, bundle):
-		return Like.objects.filter(user=bundle.request.user).exists()
+		return Like.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
 
 class FollowResource(ModelResource):
 	follower = fields.ForeignKey(UserResource, 'follower')
