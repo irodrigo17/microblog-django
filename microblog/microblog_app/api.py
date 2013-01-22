@@ -1,12 +1,15 @@
 from django.conf.urls import *
 from django.db import IntegrityError
+from django.db.models import Q
 from tastypie.resources import *
 from tastypie import fields
 from tastypie.authentication import *
 from tastypie.authorization import *
 from tastypie.utils import trailing_slash
 from microblog_app.models import *
+import microblog_app
 import logging
+
 
 # TODO: Add authorization.
 
@@ -75,6 +78,25 @@ class PostResource(ModelResource):
 
 	def dehydrate_liked_by_current_user(self, bundle):
 		return Like.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
+
+
+class FeedResource(ModelResource):
+	'''
+	A list of posts by the user himself or the users he's following, sorted by creation date.
+	'''
+	class Meta:
+		queryset = Post.objects.all()
+		resource_name = 'feed'
+		authentication = ApiKeyAuthentication()
+		authorization = Authorization()
+		list_allowed_methods = ['get']
+
+	def apply_authorization_limits(self, request, object_list):
+		# TODO: find a more efficient way to do it (if any), and maybe some way to get this in the model itself so it can be properly tasted.
+		user = microblog_app.models.User.objects.get(pk=request.user.pk)
+		filter_list = user.follows.all()
+		return object_list.filter(Q(user__in=filter_list) | Q(user=user)).order_by('created_date')
+
 
 class FollowResource(ModelResource):
 	follower = fields.ForeignKey(UserResource, 'follower')
