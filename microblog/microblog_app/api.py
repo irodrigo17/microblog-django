@@ -66,6 +66,7 @@ class PostResource(ModelResource):
 	replies = fields.IntegerField(attribute='replies_count', readonly=True)
 
 	liked_by_current_user = fields.BooleanField(readonly=True)
+	shared_by_current_user = fields.BooleanField(readonly=True)
 
 	class Meta:
 		queryset = Post.objects.all()
@@ -79,10 +80,13 @@ class PostResource(ModelResource):
 	def dehydrate_liked_by_current_user(self, bundle):
 		return Like.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
 
+	def dehydrate_shared_by_current_user(self, bundle):
+		return Share.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
+
 
 class FeedResource(ModelResource):
 	'''
-	A list of posts by the user himself or the users he's following, sorted by creation date.
+	A list of posts made/shared by the user himself or made/shared by the users he's following, sorted by creation date.
 	'''
 	class Meta:
 		queryset = Post.objects.all()
@@ -92,10 +96,14 @@ class FeedResource(ModelResource):
 		list_allowed_methods = ['get']
 
 	def apply_authorization_limits(self, request, object_list):
-		# TODO: find a more efficient way to do it (if any), and maybe some way to get this in the model itself so it can be properly tasted.
 		user = microblog_app.models.User.objects.get(pk=request.user.pk)
-		filter_list = user.follows.all()
-		return object_list.filter(Q(user__in=filter_list) | Q(user=user)).order_by('created_date')
+		follows = user.follows.all()
+		return object_list.filter(
+			Q(user=user) # Posts made by the user himself
+			| Q(user__in=follows) # Or posts made by an user that the user is following			
+			| Q(shares__user=user) # Or posts shared by the user himself
+			| Q(shares__user__in=follows) # Or posts shared by an user that the user is following
+		).order_by('created_date')
 
 
 class FollowResource(ModelResource):

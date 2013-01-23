@@ -1,6 +1,7 @@
 from django.db import models
 from django.contrib import auth
 from django.core.exceptions import ValidationError
+from django.utils.timezone import now
 from tastypie.models import create_api_key
 
 
@@ -81,7 +82,7 @@ class Like(models.Model):
 		unique_together = ("user", "post")
 
 	user = models.ForeignKey(User)
-	post = models.ForeignKey(Post)
+	post = models.ForeignKey(Post, related_name='likes')
 	created_date = models.DateTimeField("date created", auto_now_add=True)
 
 	def __unicode__(self):
@@ -89,8 +90,12 @@ class Like(models.Model):
 
 
 class Share(models.Model):
+
+	class Meta:
+		unique_together = ("user", "post")
+
 	user = models.ForeignKey(User)
-	post = models.ForeignKey(Post)
+	post = models.ForeignKey(Post, related_name='shares')
 	created_date = models.DateTimeField("date created", auto_now_add=True)
 
 	def __unicode__(self):
