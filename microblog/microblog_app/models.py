@@ -17,6 +17,9 @@ class User(auth.models.User):
 	def followers_count(self):
 		return self.followed_by.count()
 
+	def posts_count(self):
+		return self.posts.count()
+
 	def full_name(self):
 		return self.first_name + ' ' + self.last_name
 
@@ -36,7 +39,7 @@ models.signals.post_save.connect(create_api_key, sender=User)
 
 
 class Post(models.Model):
-	user = models.ForeignKey(User)
+	user = models.ForeignKey(User, related_name='posts')
 	in_reply_to = models.ForeignKey('Post', related_name='replies', blank=True, null=True)
 	text = models.CharField(max_length=200)
 	created_date = models.DateTimeField("date created", auto_now_add=True)

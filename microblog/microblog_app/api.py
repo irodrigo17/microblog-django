@@ -17,7 +17,7 @@ import logging
 class FreePostApiKeyAuthentication(ApiKeyAuthentication):
 
 	def is_authenticated(self, request, **kwargs):
-		return request.method == 'POST' or super(FreePostApiKeyAuthentication, self).is_authenticated(request, **kwargs)
+		return (request.method in ['POST', 'GET']) or super(FreePostApiKeyAuthentication, self).is_authenticated(request, **kwargs)
 
     # Optional but recommended
 	def get_identifier(self, request):
@@ -27,6 +27,7 @@ class FreePostApiKeyAuthentication(ApiKeyAuthentication):
 class UserResource(ModelResource):
 	followers = fields.IntegerField(attribute='followers_count', readonly=True)
 	following = fields.IntegerField(attribute='following_count', readonly=True)
+	posts_count = fields.IntegerField(attribute='posts_count', readonly=True)
 
 	followed_by_current_user = fields.BooleanField(readonly=True)
 
@@ -36,9 +37,9 @@ class UserResource(ModelResource):
 		fields = ['username', 'first_name', 'last_name', 'email', 'id']
 		authentication = FreePostApiKeyAuthentication()
 		authorization = Authorization()
-		filtering = {
-			"username": ('exact',), # Needed for ApiKeyAuthorization to work.
-		}
+		# filtering = {
+		# 	"username": ('exact',), # Needed for ApiKeyAuthorization to work.
+		# }
 
 	@transaction.commit_on_success # TODO: enforce this at DB level instead of API level.
 	def obj_create(self, bundle, request=None, **kwargs):
@@ -55,7 +56,11 @@ class UserResource(ModelResource):
 		return bundle
 
 	def dehydrate_followed_by_current_user(self, bundle):
-		return Follow.objects.filter(follower=bundle.request.user, followee=bundle.obj).exists()
+		user = bundle.request.user
+		if user is None or not isinstance(user, User) or not isinstance(bundle.obj, User):
+			return False
+		else:
+			return Follow.objects.filter(follower=user, followee=bundle.obj).exists()
 
 class PostResource(ModelResource):
 	user = fields.ForeignKey(UserResource, 'user')
@@ -75,6 +80,7 @@ class PostResource(ModelResource):
 		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),
+			"in_reply_to": ('exact',),
 		}
 
 	def dehydrate_liked_by_current_user(self, bundle):

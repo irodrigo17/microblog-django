@@ -77,6 +77,12 @@ class UserTest(BaseTestCase):
         self.assertEqual(1, self.u3.followers_count())
         self.assertEqual(2, self.u4.followers_count())
 
+    def test_posts_count(self):
+        self.assertEqual(3, self.u1.posts_count())
+        self.assertEqual(3, self.u2.posts_count())
+        self.assertEqual(3, self.u3.posts_count())
+        self.assertEqual(0, self.u4.posts_count())
+
 
     def test_unicode(self):
     	self.assertEqual('u1', self.u1.__unicode__())
