@@ -37,9 +37,9 @@ class UserResource(ModelResource):
 		fields = ['username', 'first_name', 'last_name', 'email', 'id']
 		authentication = FreePostApiKeyAuthentication()
 		authorization = Authorization()
-		# filtering = {
-		# 	"username": ('exact',), # Needed for ApiKeyAuthorization to work.
-		# }
+		filtering = {
+			"username": ('exact',), # Needed for ApiKeyAuthorization to work.
+		}
 
 	@transaction.commit_on_success # TODO: enforce this at DB level instead of API level.
 	def obj_create(self, bundle, request=None, **kwargs):
