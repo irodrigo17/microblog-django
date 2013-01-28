@@ -75,7 +75,13 @@ def load():
 			reply.save()
 		# log results
 		print 'created '+user.username
-
+	# swhow stats
+	print 'users: '+str(User.objects.count())
+	print 'follows: '+str(Follow.objects.count())
+	print 'posts: '+str(Post.objects.count())
+	print 'likes: '+str(Like.objects.count())
+	print 'shares: '+str(Share.objects.count())
+	
 
 def main():
 	load()
