@@ -2,12 +2,12 @@ from django.db import transaction, IntegrityError
 from microblog_app.models import *
 import random
 
-USER_COUNT = 1000
-MAX_POSTS_PER_USER = 500
-MAX_FOLLOWS_PER_USER = 200
-MAX_LIKES_PER_USER = 200
-MAX_SHARES_PER_USER = 200
-MAX_REPLIES_PER_USER = 200
+USER_COUNT = 100
+MAX_POSTS_PER_USER = 100
+MAX_FOLLOWS_PER_USER = 50
+MAX_LIKES_PER_USER = 50
+MAX_SHARES_PER_USER = 50
+MAX_REPLIES_PER_USER = 50
 
 @transaction.commit_on_success
 def load():
@@ -34,39 +34,38 @@ def load():
 				+"like my creator has run out of ideas, so, see you tomorrow!")
 			post.save()
 		# follow some random users
-		max_follows = min(MAX_FOLLOWS_PER_USER, total_users)
+		users = User.objects.all().exclude(username=user.username)
+		max_follows = min(MAX_FOLLOWS_PER_USER, users.count())
 		follow_count = random.randint(0, max_follows)
-		followees = random.sample(User.objects.all().exclude(username=user.username),  max_follows)
+		followees = random.sample(users,  max_follows)
 		for followee in followees:
 			follow = Follow(follower=user, followee=followee)
 			follow.save()
 		# share some random posts
-		max_shares = min(MAX_SHARES_PER_USER, total_posts)
-		share_count = random.randint(0, max_shares)
-		for s in range(share_count):
-			post_id = random.randint(1, total_posts)
-			post = Post.objects.get(pk=post_id)
-			if post.user != user:
-				share = Share(user=user, post=post)
-				try:
-					share.save()
-				except IntegrityError:
-					pass
+		posts = Post.objects.all().exclude(user=user)
+		max_shares = min(MAX_SHARES_PER_USER, posts.count())
+		share_count = random.randint(0, max_shares)		
+		posts = random.sample(posts, share_count)
+		for post in posts:
+			share = Share(user=user, post=post)
+			try:
+				share.save()
+			except IntegrityError:
+				pass
 		# like some random posts
-		max_likes = min(MAX_LIKES_PER_USER, total_posts)
+		posts = Post.objects.all()
+		max_likes = min(MAX_LIKES_PER_USER, posts.count())
 		like_count = random.randint(0, max_likes)
-		for l in range(like_count):
-			post_id = random.randint(1, total_posts)
-			post = Post.objects.get(pk=post_id)
+		posts = random.sample(posts, like_count)
+		for post in posts:
 			like = Like(user=user, post=post)
 			try:
 				like.save()
 			except IntegrityError:
 				pass
 		# reply to some random posts
-		for r in range(MAX_REPLIES_PER_USER):
-			post_id = random.randint(1, total_posts)
-			post = Post.objects.get(pk=post_id)
+		posts = random.sample(Post.objects.all(), MAX_REPLIES_PER_USER)
+		for post in posts:
 			reply = Post(
 				user=user, 
 				in_reply_to=post,
