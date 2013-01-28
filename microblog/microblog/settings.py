@@ -149,8 +149,7 @@ LOGGING = {
 }
 
 # Import any local settings
-from local_settings import *
-# try:
-#     from local_settings import *
-# except:
-#     pass
+try:
+    from local_settings import *
+except:
+    pass
