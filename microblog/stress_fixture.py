@@ -77,3 +77,10 @@ def load():
 		# log results
 		print 'created '+user.username
 
+
+def main():
+	load()
+
+
+if __name__ == '__main__':
+	main()
