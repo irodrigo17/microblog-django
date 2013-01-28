@@ -1,5 +1,8 @@
 # Django settings for microblog project.
 
+import dj_database_url
+
+
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
@@ -9,16 +12,8 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3', # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'NAME': 'db.sqlite3',                      # Or path to database file if using sqlite3.
-        'USER': '',                      # Not used with sqlite3.
-        'PASSWORD': '',                  # Not used with sqlite3.
-        'HOST': '',                      # Set to empty string for localhost. Not used with sqlite3.
-        'PORT': '',                      # Set to empty string for default. Not used with sqlite3.
-    }
-}
+# Parse database configuration from $DATABASE_URL
+DATABASES = {'default': dj_database_url.config()}
 # To drop database use:
 # python manage.py sqlclear microblog_app | python manage.py dbshell 
 
@@ -153,6 +148,9 @@ LOGGING = {
     }
 }
 
-# Parse database configuration from $DATABASE_URL
-import dj_database_url
-DATABASES['default'] =  dj_database_url.config()
+# Import any local settings
+from local_settings import *
+# try:
+#     from local_settings import *
+# except:
+#     pass
