@@ -109,7 +109,7 @@ class FeedResource(ModelResource):
 			| Q(user__in=follows) # Or posts made by an user that the user is following			
 			| Q(shares__user=user) # Or posts shared by the user himself
 			| Q(shares__user__in=follows) # Or posts shared by an user that the user is following
-		).order_by('created_date')
+		).order_by('created_date').distinct()
 
 
 class FollowResource(ModelResource):
