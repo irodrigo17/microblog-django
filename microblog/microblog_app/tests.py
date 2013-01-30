@@ -1,10 +1,15 @@
 from django.test import TestCase
 from django.http import HttpRequest
+from django.utils import timezone
+from copy import copy
 from microblog_app.models import *
 from microblog_app.api import *
-
+import unittest
 
 class BaseTestCase(TestCase):
+    '''
+    Base class for tests that adds some initial data to the DB and stores created instances as instance variables.
+    '''
 
     def setUp(self):
         self.u1 = User(username='u1')
@@ -87,6 +92,18 @@ class UserTest(BaseTestCase):
     def test_unicode(self):
     	self.assertEqual('u1', self.u1.__unicode__())
 
+    def test_set_password(self):
+        with self.assertRaises(ValidationError):
+            self.u1.set_password('')
+        with self.assertRaises(ValidationError):
+            self.u1.set_password('1')
+        with self.assertRaises(ValidationError):
+            self.u1.set_password('12')
+        with self.assertRaises(ValidationError):
+            self.u1.set_password('123')
+
+        self.u1.set_password('1234')
+
 
 class PostTest(BaseTestCase):
 
@@ -106,6 +123,65 @@ class PostTest(BaseTestCase):
     def test_unicode(self):
         self.assertEqual('p11', self.p11.__unicode__())
 
+    @unittest.skip("max_length validation is not enforced in SQLite")
+    def test_text_validation(self):
+        # text field should be 200 characters or less
+        user = User(username='test-post-validations-user')
+        user.save()
+        post = Post(user=user, text='Testing posts validations')
+        post.save()
+
+        limit_post = Post(user=user, text="x" * 200)
+        limit_post.save()
+
+        bad_post = Post(user=user, text="x"*201)
+        try:
+            bad_post.save()
+            self.fail("Save should have failed, text is %i characters long" % len(bad_post.text))
+        except ValidationError as error:
+            pass
+
+    def test_auto_dates(self):
+        # crate a post
+        user = User(username='test-post-auto-dates-user')
+        user.save()
+        post = Post(user=user, text='Testing posts auto dates')
+        before = timezone.now()
+        post.save()
+        after = timezone.now()
+        self.assertTrue(timezone.is_aware(post.created_date))
+        self.assertTrue(timezone.is_aware(post.modified_date))
+        self.assertTrue(before < post.created_date < after)
+        self.assertTrue(before < post.modified_date < after)
+        # update post
+        post.text = 'Updated text'
+        old_created_date = copy(post.created_date)
+        old_modified_date = copy(post.modified_date)
+        before = timezone.now()
+        post.save()
+        after = timezone.now()
+        self.assertTrue(timezone.is_aware(post.created_date))
+        self.assertTrue(timezone.is_aware(post.modified_date))
+        self.assertTrue(before < post.modified_date < after)
+        self.assertTrue(old_modified_date < post.modified_date)
+        self.assertTrue(old_created_date == post.created_date)
+
+
+class FollowTest(BaseTestCase):
+
+    def test_non_reflexive(self):
+        follow = Follow(follower=self.u1, followee=self.u1)
+        try:
+            follow.save()
+            self.fail('Follow relation should be non-reflexive')
+        except ValidationError as error:
+            pass
+
+    def test_non_symmetrical(self):
+        self.assertTrue(self.u1.following.filter(followee=self.u2).exists())
+        self.assertFalse(self.u2.following.filter(followee=self.u1).exists())
+        self.assertFalse(self.u1.followed_by.filter(follower=self.u2).exists())
+        self.assertTrue(self.u2.followed_by.filter(follower=self.u1).exists())
 
 
 class FeedResourceTest(BaseTestCase):
