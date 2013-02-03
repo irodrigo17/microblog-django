@@ -356,18 +356,21 @@ class LoginResource(Resource):
 		if errors:
 			return self.error_response(errors, request)
 
-		username = deserialized['username']
-		email = deserialized['email']
+		if 'username' in deserialized:
+			username = deserialized['username']
+		else:
+			email = deserialized['email']
 		password = deserialized['password']
 
 		try:
 			if username:
 				user = User.objects.get(username=username)
-			elif email:
+			else:
 				user = User.objects.get(email=email)
 		except User.DoesNotExist:
 			return self.create_response(request, 'Invalid user.',
 										http.HttpUnauthorized)
+
 		if not user.is_active:
 			return self.create_response(request, 'Your account is disabled.',
 										http.HttpUnauthorized)
