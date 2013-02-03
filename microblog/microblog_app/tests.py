@@ -6,6 +6,7 @@ from microblog_app.models import *
 from microblog_app.api import *
 import unittest
 
+
 class BaseTestCase(TestCase):
     '''
     Base class for tests that adds some initial data to the DB and stores created instances as instance variables.
@@ -63,6 +64,7 @@ class BaseTestCase(TestCase):
         self.s431 = Share(user=self.u4, post=self.p31)
         self.s431.save()
 
+# Model tests
 
 class UserTest(BaseTestCase):
 
@@ -204,7 +206,6 @@ class ShareTest(BaseTestCase):
         self.assertEquals(self.s231.__unicode__(), 'u2 shares p31')
 
 
-
 class FeedResourceTest(BaseTestCase):
     
     def test_apply_authorization_limits(self):
@@ -215,6 +216,5 @@ class FeedResourceTest(BaseTestCase):
         feed = feed_resource.apply_authorization_limits(request,object_list)
         expected_result = [self.p11, self.p12, self.p13, self.p21, self.p22, self.p23, self.p31]
         self.assertEqual(expected_result, list(feed))
-
 
 
