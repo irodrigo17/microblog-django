@@ -1,6 +1,8 @@
 from django.conf.urls import url
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Count, Sum
+from django.core.validators import email_re
+from tastypie.http import HttpUnauthorized
 from tastypie.resources import ModelResource, Resource
 from tastypie import fields
 from tastypie.authentication import ApiKeyAuthentication
@@ -20,15 +22,101 @@ logger = logging.getLogger(__name__)
 
 # TODO: Add authorization.
 
-# ApiKeyAuthentication with 'free' (unauthenticated) POST.
-class FreePostApiKeyAuthentication(ApiKeyAuthentication):
+class MicroblogApiKeyAuthentication(ApiKeyAuthentication):
+	"""
+	Handles custom API Key authentication.
+	- Supports HTTP header authentication, implemented in tastypie head, but not in current stable version 0.9.11.
+	- Supports overriding the user identifier key for query parameter authentication, 
+	which defaults to 'api_user' instead of username to avoid collision with filters.
+	- Support for 'public methods' (HTTP methods which don't require authentication), defaults to [].
+	- Automatic support for email and username as 'user_identifier', it first checks if the provided 
+	'user_identifier' is a valid email address, if it's not it assumes it's an username. 
+	"""
 
+	public_methods = []
+	user_identifier = 'api_user'
+	
+	def __init__(self, user_identifier='api_user', public_methods=[]):
+		super(MicroblogApiKeyAuthentication, self).__init__()
+		self.public_methods = public_methods
+		self.user_identifier = user_identifier
+
+	def _unauthorized(self):
+		return False
+
+	def is_valid_email(self, email):
+		return True if email and email_re.match(email) else False
+
+	def extract_credentials(self, request):
+		if request.META.get('HTTP_AUTHORIZATION') and request.META['HTTP_AUTHORIZATION'].lower().startswith('apikey '):
+			(auth_type, data) = request.META['HTTP_AUTHORIZATION'].split()
+
+			if auth_type.lower() != 'apikey':
+				raise ValueError("Incorrect authorization header.")
+
+			user_identifier, api_key = data.split(':', 1)
+		else:
+			user_identifier = request.GET.get(self.user_identifier) or request.POST.get(self.user_identifier)
+			api_key = request.GET.get('api_key') or request.POST.get('api_key')
+
+		user_identifier_type = 'email' if self.is_valid_email(user_identifier) else 'username'
+
+		return user_identifier, api_key, user_identifier_type
+
+	def get_key(self, user, api_key):
+		"""
+		Attempts to find the API key for the user. Uses ``ApiKey`` by default
+		but can be overridden.
+		"""
+		from tastypie.models import ApiKey
+
+		try:
+			ApiKey.objects.get(user=user, key=api_key)
+		except ApiKey.DoesNotExist:
+			return self._unauthorized()
+
+		return True
+	
 	def is_authenticated(self, request, **kwargs):
-		return (request.method in ['POST', 'GET']) or super(FreePostApiKeyAuthentication, self).is_authenticated(request, **kwargs)
+		"""
+		Finds the user and checks their API key.
 
-	# Optional but recommended
-	def get_identifier(self, request):
-		return request.user.username
+		Should return either ``True`` if allowed, ``False`` if not or an
+		``HttpResponse`` if you need something custom.
+		"""
+
+		# check public methods
+		logger.debug('request method: '+str(request.method))
+		if request.method in self.public_methods:
+			return True
+
+		# check authorization parameters
+		try:
+			user_identifier, api_key, user_identifier_type = self.extract_credentials(request)
+			logger.debug('user_identifier: '+str(user_identifier))
+			logger.debug('api_key: '+str(api_key))
+			logger.debug('user_identifier_type: '+str(user_identifier_type))
+		except ValueError:
+			return self._unauthorized()
+
+		if not user_identifier or not api_key:
+			return self._unauthorized()
+
+		try:
+			if user_identifier_type == 'username':
+				user = User.objects.get(username=user_identifier)
+			else:
+				user = User.objects.get(email=user_identifier)
+		except (User.DoesNotExist, User.MultipleObjectsReturned):
+			return self._unauthorized()
+
+		logger.debug('user: %s' % str(user))
+		logger.debug('user class: %s' % user.__class__.__name__)
+		if not user.is_active:
+			return False
+
+		request.user = user
+		return self.get_key(user, api_key)
 
 
 # TODO: Get haystack search working properly and compare with custom search.
@@ -123,6 +211,7 @@ class SearchableModelResource(ModelResource):
 		return query_set
 
 	def get_search(self, request, **kwargs):
+		logger.debug(str(request))
 		self.method_check(request, allowed=['get'])
 		self.is_authenticated(request)
 		self.throttle_check(request)
@@ -163,7 +252,7 @@ class UserResource(SearchableModelResource):
 		queryset = User.objects.all()
 		resource_name = 'user'
 		fields = ['username', 'first_name', 'last_name', 'email', 'id']
-		authentication = FreePostApiKeyAuthentication()
+		authentication = MicroblogApiKeyAuthentication(public_methods=['POST'])
 		authorization = Authorization()
 		filtering = {
 			"username": ('exact',), # Needed for ApiKeyAuthorization to work.
@@ -217,7 +306,7 @@ class PostResource(SearchableModelResource):
 	class Meta:
 		queryset = Post.objects.all()
 		resource_name = 'post'
-		authentication = ApiKeyAuthentication()
+		authentication = MicroblogApiKeyAuthentication()
 		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),
@@ -248,7 +337,7 @@ class FeedResource(SearchableModelResource):
 	class Meta:
 		queryset = Post.objects.all()
 		resource_name = 'feed'
-		authentication = ApiKeyAuthentication()
+		authentication = MicroblogApiKeyAuthentication()
 		authorization = Authorization()
 		list_allowed_methods = ['get']
 
@@ -283,7 +372,7 @@ class FollowResource(ModelResource):
 	class Meta:
 		queryset = Follow.objects.all()
 		resource_name = 'follow'
-		authentication = ApiKeyAuthentication()
+		authentication = MicroblogApiKeyAuthentication()
 		authorization = Authorization()
 		filtering = {
 			"follower": ('exact',),
@@ -297,7 +386,7 @@ class LikeResource(ModelResource):
 	class Meta:
 		queryset = Like.objects.all()
 		resource_name = 'like'
-		authentication = ApiKeyAuthentication()
+		authentication = MicroblogApiKeyAuthentication()
 		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),
@@ -311,7 +400,7 @@ class ShareResource(ModelResource):
 	class Meta:
 		queryset = Share.objects.all()
 		resource_name = 'share'
-		authentication = ApiKeyAuthentication()
+		authentication = MicroblogApiKeyAuthentication()
 		authorization = Authorization()
 		filtering = {
 			"user": ('exact',),

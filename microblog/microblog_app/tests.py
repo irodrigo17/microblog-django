@@ -1,6 +1,7 @@
 from django.test import TestCase
 from django.http import HttpRequest
 from django.utils import timezone
+from tastypie.models import ApiKey
 from copy import copy
 from microblog_app.models import *
 from microblog_app.api import *
@@ -13,13 +14,13 @@ class BaseTestCase(TestCase):
     '''
 
     def setUp(self):
-        self.u1 = User(username='u1')
+        self.u1 = User(username='u1', email='u1@email.com')
         self.u1.save()
-        self.u2 = User(username='u2')
+        self.u2 = User(username='u2', email='u2@email.com')
         self.u2.save()
-        self.u3 = User(username='u3')
+        self.u3 = User(username='u3', email='u3@email.com')
         self.u3.save()
-        self.u4 = User(username='u4')
+        self.u4 = User(username='u4', email='u4@email.com')
         self.u4.save()
 
         self.p11 = Post(user=self.u1, text='p11')
@@ -206,6 +207,8 @@ class ShareTest(BaseTestCase):
         self.assertEquals(self.s231.__unicode__(), 'u2 shares p31')
 
 
+# API tests
+
 class FeedResourceTest(BaseTestCase):
     
     def test_apply_authorization_limits(self):
@@ -218,3 +221,127 @@ class FeedResourceTest(BaseTestCase):
         self.assertEqual(expected_result, list(feed))
 
 
+class MicroblogApiKeyAuthenticationTest(BaseTestCase):
+    
+    def api_key(self, user):
+        return ApiKey.objects.get(user=user).key        
+
+    def test_header_authorization(self):
+        # authorized
+        request = HttpRequest()
+        user = self.u1
+        api_key = self.api_key(user)
+        self.assertTrue(api_key is not None and len(api_key) > 0)
+        request.META['HTTP_AUTHORIZATION'] = 'ApiKey %s:%s' % (user.username, api_key)
+        auth = MicroblogApiKeyAuthentication()
+        self.assertTrue(auth.is_authenticated(request))
+        self.assertTrue(request.user == user)
+        # unauthorized
+        request.META['HTTP_AUTHORIZATION'] = 'bad authorization'
+        self.assertFalse(auth.is_authenticated(request))
+
+    def test_query_authorization(self):
+        # username authorized
+        request = HttpRequest()
+        user = self.u2
+        api_key = self.api_key(user)
+        self.assertTrue(api_key is not None and len(api_key) > 0)
+        request.GET['api_user'] = user.username
+        request.GET['api_key'] = api_key
+        auth = MicroblogApiKeyAuthentication()
+        self.assertTrue(auth.is_authenticated(request))
+        self.assertTrue(request.user == user)
+        # email authorized
+        request.GET['api_user'] = user.email
+        request.GET['api_key'] = api_key
+        self.assertTrue(auth.is_authenticated(request))
+        self.assertTrue(request.user == user)
+        # username unauthorized
+        request.GET['api_user'] = 'bad_username'
+        request.GET['api_key'] = api_key
+        self.assertFalse(auth.is_authenticated(request))
+        # email unauthorized
+        request.GET['api_user'] = 'bad_email@email.com'
+        request.GET['api_key'] = api_key
+        self.assertFalse(auth.is_authenticated(request))
+        # username and bad api key
+        request.GET['api_user'] = user.username
+        request.GET['api_key'] = 'bad_key'
+        self.assertFalse(auth.is_authenticated(request))
+        # email and bad api key
+        request.GET['api_user'] = user.email
+        request.GET['api_key'] = 'bad_key'
+        self.assertFalse(auth.is_authenticated(request)) 
+
+    def test_public_methods(self):
+        # authorized
+        request = HttpRequest()
+        request.method = 'GET'
+        auth = MicroblogApiKeyAuthentication(public_methods=[request.method])
+        self.assertTrue(auth.is_authenticated(request))
+        request = HttpRequest()
+
+        request.method = 'POST'
+        auth = MicroblogApiKeyAuthentication(public_methods=[request.method])
+        self.assertTrue(auth.is_authenticated(request))
+
+        request.method = 'PUT'
+        auth = MicroblogApiKeyAuthentication(public_methods=[request.method])
+        self.assertTrue(auth.is_authenticated(request))
+
+        request.method = 'PATCH'
+        auth = MicroblogApiKeyAuthentication(public_methods=[request.method])
+        self.assertTrue(auth.is_authenticated(request))
+
+        request.method = '\DELETE'
+        auth = MicroblogApiKeyAuthentication(public_methods=[request.method])
+        self.assertTrue(auth.is_authenticated(request))
+
+        request.method = 'POST'
+        auth = MicroblogApiKeyAuthentication(public_methods=['POST', 'GET'])
+        self.assertTrue(auth.is_authenticated(request))
+
+        # unauthorized
+        request.method = 'PUT'
+        self.assertFalse(auth.is_authenticated(request))
+
+        request.method = 'PATCH'
+        self.assertFalse(auth.is_authenticated(request))
+
+        request.method = '\DELETE'
+        self.assertFalse(auth.is_authenticated(request))
+
+    def test_custom_user_identifier(self):
+        # username authorized
+        request = HttpRequest()
+        user = self.u2
+        api_key = self.api_key(user)
+        self.assertTrue(api_key is not None and len(api_key) > 0)
+        user_identifier = 'my_custom_user_identifier'
+        auth = MicroblogApiKeyAuthentication(user_identifier=user_identifier)
+        request.GET[user_identifier] = user.username
+        request.GET['api_key'] = api_key
+        self.assertTrue(auth.is_authenticated(request))
+        self.assertTrue(request.user == user)
+        # email authorized
+        request.GET[user_identifier] = user.username
+        request.GET['api_key'] = api_key
+        self.assertTrue(auth.is_authenticated(request))
+        self.assertTrue(request.user == user)
+        # username unauthorized
+        request.GET[user_identifier] = 'bad_username'
+        request.GET['api_key'] = api_key
+        self.assertFalse(auth.is_authenticated(request))
+        # email unauthorized
+        request.GET[user_identifier] = 'bad_email@email.com'
+        request.GET['api_key'] = api_key
+        self.assertFalse(auth.is_authenticated(request))
+        # username and bad api key
+        request.GET[user_identifier] = user.username
+        request.GET['api_key'] = 'bad_key'
+        self.assertFalse(auth.is_authenticated(request))
+        # email and bad api key
+        request.GET[user_identifier] = user.email
+        request.GET['api_key'] = 'bad_key'
+        self.assertFalse(auth.is_authenticated(request))
+        
