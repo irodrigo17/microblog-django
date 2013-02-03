@@ -41,7 +41,7 @@ models.signals.post_save.connect(create_api_key, sender=User)
 class Post(models.Model):
 	user = models.ForeignKey(User, related_name='posts')
 	in_reply_to = models.ForeignKey('Post', related_name='replies', blank=True, null=True)
-	text = models.CharField(max_length=200)
+	text = models.CharField(max_length=200, db_index=True)
 	created_date = models.DateTimeField("date created", auto_now_add=True)
 	modified_date = models.DateTimeField("date modified", auto_now=True)	
 
