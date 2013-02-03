@@ -2,7 +2,7 @@ from django.db import transaction, IntegrityError
 from microblog_app.models import *
 import random
 
-USER_COUNT = 100
+USER_COUNT = 500
 MAX_POSTS_PER_USER = 100
 MAX_FOLLOWS_PER_USER = 50
 MAX_LIKES_PER_USER = 50
