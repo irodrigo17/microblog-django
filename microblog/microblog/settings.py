@@ -116,6 +116,7 @@ INSTALLED_APPS = (
     'haystack',
     'tastypie',    
     'microblog_app',
+    'gunicorn',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
 )

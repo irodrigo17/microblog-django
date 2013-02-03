@@ -1,1 +1,1 @@
-web: python microblog/manage.py runserver 0.0.0.0:$PORT --noreload
+web: python microblog/manage.py run_gunicorn
