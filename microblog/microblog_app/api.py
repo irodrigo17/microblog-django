@@ -132,7 +132,6 @@ class SearchableModelResource(ModelResource):
 
 		# Customize query set.
 		results = self.customize_query_set(results, request)
-		logger.debug('search query: '+str(results.query))
 
 		# Paginate the results.
 		paginator = self._meta.paginator_class(request.GET, results, resource_uri=self.get_resource_list_uri(), limit=self._meta.limit)
