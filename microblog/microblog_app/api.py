@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Count
+from django.db.models import Q, Count, Sum
 from tastypie.resources import ModelResource, Resource
 from tastypie import fields
 from tastypie.authentication import ApiKeyAuthentication
@@ -31,6 +31,7 @@ class FreePostApiKeyAuthentication(ApiKeyAuthentication):
 		return request.user.username
 
 
+# TODO: Get haystack search working properly and compare with custom search.
 class HaystackSearchableModelResource(ModelResource):
 	"""
 	Base class for all searchable resources. It creates a custom endpoit at /<resource_name>/search/ 
@@ -79,8 +80,9 @@ class HaystackSearchableModelResource(ModelResource):
 
 	def get_model(self):
 		raise RuntimeError('Override me')
-		
 
+
+# TODO: refine this class
 class SearchableModelResource(ModelResource):
 
 	def override_urls(self):
@@ -88,6 +90,7 @@ class SearchableModelResource(ModelResource):
 			url(r"^(?P<resource_name>%s)/search%s$" % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_search'), name="api_get_search"),
 		]
 
+	# TODO: find a better way of specifying 'searchable fields'
 	def get_q_objects(self, terms):
 		"""
 		This method shoud beoverriden by subclasses, returning an array of django.model.db.Q objects 
@@ -99,17 +102,23 @@ class SearchableModelResource(ModelResource):
 		query = request.GET.get('q', '')
 		return [term.strip() for term in query.split()]
 
+	def base_query_set(self, request):
+		"""
+		Subclasses can override this method to provide a custom base (initial) query set.
+		"""
+		return self.get_object_list(request)
+
 	def search(self, request):
-		qs = self.get_object_list(request)
+		qs = self.base_query_set(request)
 		terms = self.get_terms(request)
 		if len(terms):
 			q_objects = self.get_q_objects(terms)
 			qs = qs.filter(reduce(operator.or_, q_objects))
 		return qs
 
-	def apply_order(self, query_set, request):
+	def customize_query_set(self, query_set, request):
 		"""
-		Override to provide custom ordering.
+		Override to provide custom filtering or ordering to the query set.
 		"""
 		return query_set
 
@@ -121,8 +130,8 @@ class SearchableModelResource(ModelResource):
 		# Do the query.		
 		results = self.search(request)
 
-		# Ordering
-		results = self.apply_order(results)
+		# Customize query set.
+		results = self.customize_query_set(results, request)
 		logger.debug('search query: '+str(results.query))
 
 		# Paginate the results.
@@ -190,8 +199,8 @@ class UserResource(SearchableModelResource):
 			q_objects.append(Q(last_name__icontains=term))
 		return q_objects
 
-	def apply_order(self, query_set):
-		return query_set.annotate(Count('posts', distinct=True)).annotate(Count('followed_by', distinct=True)).order_by('-followed_by__count','-posts__count')
+	def customize_query_set(self, query_set, request):
+		return query_set.annotate(Count('followed_by', distinct=True)).order_by('-followed_by__count')
 
 
 
@@ -229,11 +238,11 @@ class PostResource(SearchableModelResource):
 		
 		return q_objects
 
-	def apply_order(self, query_set):
-		return query_set.annotate(Count('likes', distinct=True)).annotate(Count('shares', distinct=True)).order_by('-likes__count','-shares__count')
+	def customize_query_set(self, query_set, request):
+		return query_set.annotate(Count('likes', distinct=True)).order_by('-likes__count')
 
 
-class FeedResource(ModelResource):
+class FeedResource(SearchableModelResource):
 	'''
 	A list of posts made/shared by the user himself or made/shared by the users he's following, sorted by creation date.
 	'''
@@ -253,6 +262,19 @@ class FeedResource(ModelResource):
 			| Q(shares__user=user) # Or posts shared by the user himself
 			| Q(shares__user__in=follows) # Or posts shared by an user that the user is following
 		).order_by('created_date').distinct()
+
+	def get_q_objects(self, terms):
+		q_objects = []
+		for term in terms:
+			q_objects.append(Q(text__icontains=term))
+		return q_objects
+
+	def customize_query_set(self, query_set, request):
+		return query_set.annotate(Count('likes', distinct=True)).order_by('-likes__count')
+
+	def base_query_set(self, request):
+		objects = self.get_object_list(request)
+		return self.apply_authorization_limits(request, objects)
 
 
 class FollowResource(ModelResource):
