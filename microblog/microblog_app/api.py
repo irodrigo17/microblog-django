@@ -1,14 +1,21 @@
-from django.conf.urls import *
-from django.db import IntegrityError
-from django.db.models import Q
-from tastypie.resources import *
+from django.conf.urls import url
+from django.db import IntegrityError, transaction
+from django.db.models import Q, Count
+from tastypie.resources import ModelResource, Resource
 from tastypie import fields
-from tastypie.authentication import *
-from tastypie.authorization import *
+from tastypie.authentication import ApiKeyAuthentication
+from tastypie.authorization import Authorization
 from tastypie.utils import trailing_slash
+from tastypie.paginator import Paginator
+from haystack.query import SearchQuerySet, EmptySearchQuerySet
 from microblog_app.models import *
 import microblog_app
 import logging
+import operator
+
+
+# Get an instance of a logger
+logger = logging.getLogger(__name__)
 
 
 # TODO: Add authorization.
@@ -19,12 +26,125 @@ class FreePostApiKeyAuthentication(ApiKeyAuthentication):
 	def is_authenticated(self, request, **kwargs):
 		return (request.method in ['POST', 'GET']) or super(FreePostApiKeyAuthentication, self).is_authenticated(request, **kwargs)
 
-    # Optional but recommended
+	# Optional but recommended
 	def get_identifier(self, request):
 		return request.user.username
 
 
-class UserResource(ModelResource):
+class HaystackSearchableModelResource(ModelResource):
+	"""
+	Base class for all searchable resources. It creates a custom endpoit at /<resource_name>/search/ 
+	and expects the query string to contain a 'q' parameter with the search query.
+
+	It uses Haystack for searching by default, but subclasses can also override get_search to provide custom search.
+	If Haystack is used, then subclasses need to override get_model and return the proper django model class.
+	Defualt Haystack search also paginates the results, tastypie style.
+	"""
+
+	def override_urls(self):
+		return [
+			url(r"^(?P<resource_name>%s)/search%s$" % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_search'), name="api_get_search"),
+		]
+
+	def get_search(self, request, **kwargs):
+		self.method_check(request, allowed=['get'])
+		self.is_authenticated(request)
+		self.throttle_check(request)
+
+		# Do the query.
+		sqs = SearchQuerySet().models(self.get_model()).load_all().auto_query(request.GET.get('q', ''))
+
+		# Paginate the results.
+		paginator = self._meta.paginator_class(request.GET, sqs, resource_uri=self.get_resource_list_uri(), limit=self._meta.limit)
+		logger.debug('Paginator ready')
+
+		# Create response
+		bundles = []
+		objects = paginator.page()['objects']
+		logger.debug('objects: '+str(objects))
+		for result in objects:			
+			logger.debug('result: '+str(result))
+			bundle = self.build_bundle(obj=result.object, request=request)
+			logger.debug('bundle: '+str(bundle))
+			bundles.append(self.full_dehydrate(bundle))
+			logger.debug('dehydrated bundles: '+str(bundles))
+		 
+		object_list = {
+			'meta': paginator.page()['meta'],
+			'objects': bundles
+		}
+
+		self.log_throttled_access(request)
+		return self.create_response(request, object_list)
+
+	def get_model(self):
+		raise RuntimeError('Override me')
+		
+
+class SearchableModelResource(ModelResource):
+
+	def override_urls(self):
+		return [
+			url(r"^(?P<resource_name>%s)/search%s$" % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_search'), name="api_get_search"),
+		]
+
+	def get_q_objects(self, terms):
+		"""
+		This method shoud beoverriden by subclasses, returning an array of django.model.db.Q objects 
+		that will be joined with ORs for filtering the base queryset.
+		"""
+		raise RuntimeError('Override me.')
+
+	def get_terms(self, request):
+		query = request.GET.get('q', '')
+		return [term.strip() for term in query.split()]
+
+	def search(self, request):
+		qs = self.get_object_list(request)
+		terms = self.get_terms(request)
+		if len(terms):
+			q_objects = self.get_q_objects(terms)
+			qs = qs.filter(reduce(operator.or_, q_objects))
+		return qs
+
+	def apply_order(self, query_set, request):
+		"""
+		Override to provide custom ordering.
+		"""
+		return query_set
+
+	def get_search(self, request, **kwargs):
+		self.method_check(request, allowed=['get'])
+		self.is_authenticated(request)
+		self.throttle_check(request)
+
+		# Do the query.		
+		results = self.search(request)
+
+		# Ordering
+		results = self.apply_order(results)
+		logger.debug('search query: '+str(results.query))
+
+		# Paginate the results.
+		paginator = self._meta.paginator_class(request.GET, results, resource_uri=self.get_resource_list_uri(), limit=self._meta.limit)
+
+		# Create response
+		bundles = []
+		objects = paginator.page()['objects']
+		for result in objects:			
+			bundle = self.build_bundle(obj=result, request=request)
+			bundles.append(self.full_dehydrate(bundle))
+		 
+		object_list = {
+			'meta': paginator.page()['meta'],
+			'objects': bundles
+		}
+
+		self.log_throttled_access(request)
+		return self.create_response(request, object_list)
+
+
+class UserResource(SearchableModelResource):
 	followers = fields.IntegerField(attribute='followers_count', readonly=True)
 	following = fields.IntegerField(attribute='following_count', readonly=True)
 	posts_count = fields.IntegerField(attribute='posts_count', readonly=True)
@@ -62,7 +182,20 @@ class UserResource(ModelResource):
 		else:
 			return Follow.objects.filter(follower=user, followee=bundle.obj).exists()
 
-class PostResource(ModelResource):
+	def get_q_objects(self, terms):
+		q_objects = []
+		for term in terms:
+			q_objects.append(Q(username__icontains=term))
+			q_objects.append(Q(first_name__icontains=term))
+			q_objects.append(Q(last_name__icontains=term))
+		return q_objects
+
+	def apply_order(self, query_set):
+		return query_set.annotate(Count('posts', distinct=True)).annotate(Count('followed_by', distinct=True)).order_by('-followed_by__count','-posts__count')
+
+
+
+class PostResource(SearchableModelResource):
 	user = fields.ForeignKey(UserResource, 'user')
 	in_reply_to = fields.ForeignKey('microblog_app.api.PostResource', 'in_reply_to', null=True, blank=True)
 
@@ -88,6 +221,16 @@ class PostResource(ModelResource):
 
 	def dehydrate_shared_by_current_user(self, bundle):
 		return Share.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
+
+	def get_q_objects(self, terms):
+		q_objects = []
+		for term in terms:
+			q_objects.append(Q(text__icontains=term))
+		
+		return q_objects
+
+	def apply_order(self, query_set):
+		return query_set.annotate(Count('likes', distinct=True)).annotate(Count('shares', distinct=True)).order_by('-likes__count','-shares__count')
 
 
 class FeedResource(ModelResource):
@@ -155,65 +298,69 @@ class ShareResource(ModelResource):
 		}
 
 class LoginResource(Resource):
-    """
+	"""
 	Used to obtain the API key assigned to a user for a period of time, using
 	his email and password.
 	"""
 
-    class Meta:
-        resource_name = 'login'
-        list_allowed_methods = ['post']
+	class Meta:
+		resource_name = 'login'
+		list_allowed_methods = ['post']
 
-    def override_urls(self):
-        return [
-            url(r"^(?P<resource_name>%s)/$" % self._meta.resource_name,
-                self.wrap_view('login'), name="api_login"),
-        ]
+	def override_urls(self):
+		return [
+			url(r"^(?P<resource_name>%s)/$" % self._meta.resource_name,
+				self.wrap_view('login'), name="api_login"),
+		]
 
-    def validate_data(self, data):
-        """
+	def validate_data(self, data):
+		"""
 		Validate that the appropriate parameters are received.
 		"""
-        errors = []
-        if not 'username' in data:
-            errors.append('You must provide an "username" field.')
-        if not 'password' in data:
-            errors.append('You must provide a "password" field.')
-        return errors
+		errors = []
+		if not 'username' in data or 'email' in data:
+			errors.append('You must provide an "username" field or an "email" field.')
+		if not 'password' in data:
+			errors.append('You must provide a "password" field.')
+		return errors
 
-    def login(self, request, **kwargs):
-        deserialized = self.deserialize(
-            request,
-            request.raw_post_data,
-            format=request.META.get('CONTENT_TYPE', 'application/json')
-        )
+	def login(self, request, **kwargs):
+		deserialized = self.deserialize(
+			request,
+			request.raw_post_data,
+			format=request.META.get('CONTENT_TYPE', 'application/json')
+		)
 
-        errors = self.validate_data(deserialized)
-        if errors:
-            return self.error_response(errors, request)
+		errors = self.validate_data(deserialized)
+		if errors:
+			return self.error_response(errors, request)
 
-        username = deserialized['username']
-        password = deserialized['password']
+		username = deserialized['username']
+		email = deserialized['email']
+		password = deserialized['password']
 
-        try:
-            user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            return self.create_response(request, 'Invalid user.',
-                                        http.HttpUnauthorized)
-        if not user.is_active:
-            return self.create_response(request, 'Your account is disabled.',
-                                        http.HttpUnauthorized)
+		try:
+			if username:
+				user = User.objects.get(username=username)
+			elif email:
+				user = User.objects.get(email=email)
+		except User.DoesNotExist:
+			return self.create_response(request, 'Invalid user.',
+										http.HttpUnauthorized)
+		if not user.is_active:
+			return self.create_response(request, 'Your account is disabled.',
+										http.HttpUnauthorized)
 
-        if not user.check_password(password):
-            return self.create_response(request, 'Incorrect password.',
-                                        http.HttpUnauthorized)
+		if not user.check_password(password):
+			return self.create_response(request, 'Incorrect password.',
+										http.HttpUnauthorized)
 
-        api_key = user.api_key
+		api_key = user.api_key
 
-        user_resource = UserResource()
-        response_data = {
-            'api_key': api_key.key,
-            'user': user_resource.get_resource_uri(user)
-        }
+		user_resource = UserResource()
+		response_data = {
+			'api_key': api_key.key,
+			'user': user_resource.get_resource_uri(user)
+		}
 
-        return self.create_response(request, response_data)
+		return self.create_response(request, response_data)

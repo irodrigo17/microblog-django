@@ -112,9 +112,10 @@ INSTALLED_APPS = (
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'microblog_app',
     'django.contrib.admin',
-    'tastypie',
+    'haystack',
+    'tastypie',    
+    'microblog_app',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
 )
@@ -147,6 +148,20 @@ LOGGING = {
         },
     }
 }
+
+
+# Haystack configuration
+
+HAYSTACK_SITECONF = 'microblog_app.search_sites'
+
+HAYSTACK_SEARCH_ENGINE = 'simple'
+
+HAYSTACK_CONNECTIONS = {
+    'default': {
+        'ENGINE': 'haystack.backends.simple_backend.SimpleEngine',
+    },
+}
+
 
 # Import any local settings
 try:
