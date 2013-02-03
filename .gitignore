@@ -6,4 +6,3 @@ local_settings.py
 microblog/db.sqlite3
 .DS_Store
 venv
-.DS_Store
