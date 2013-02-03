@@ -183,6 +183,27 @@ class FollowTest(BaseTestCase):
         self.assertFalse(self.u1.followed_by.filter(follower=self.u2).exists())
         self.assertTrue(self.u2.followed_by.filter(follower=self.u1).exists())
 
+    def test_unique_together(self):
+        follow = Follow(follower=self.u1, followee=self.u2)
+        try:
+            follow.save()
+            self.fail('follower and followee should be unique_together')
+        except IntegrityError:
+            pass
+
+
+class LikeTest(BaseTestCase):
+
+    def test_unicode(self):
+        self.assertEquals(self.l121.__unicode__(), 'u1 likes p21')
+
+
+class ShareTest(BaseTestCase):
+
+    def test_unicode(self):
+        self.assertEquals(self.s231.__unicode__(), 'u2 shares p31')
+
+
 
 class FeedResourceTest(BaseTestCase):
     
