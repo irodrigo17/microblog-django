@@ -173,6 +173,9 @@ class HaystackSearchableModelResource(ModelResource):
 # TODO: refine this class
 class SearchableModelResource(ModelResource):
 
+	class Meta:
+		authentication = MicroblogApiKeyAuthentication()
+
 	def override_urls(self):
 		return [
 			url(r"^(?P<resource_name>%s)/search%s$" % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_search'), name="api_get_search"),
