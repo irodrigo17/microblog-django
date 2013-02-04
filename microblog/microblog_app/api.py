@@ -296,7 +296,7 @@ class UserResource(SearchableModelResource):
 
 
 class PostResource(SearchableModelResource):
-	user = fields.ForeignKey(UserResource, 'user')
+	user = fields.ForeignKey(UserResource, 'user', full=True)
 	in_reply_to = fields.ForeignKey('microblog_app.api.PostResource', 'in_reply_to', null=True, blank=True)
 
 	likes = fields.IntegerField(attribute='liked_by_count', readonly=True)
@@ -333,10 +333,21 @@ class PostResource(SearchableModelResource):
 		return query_set.annotate(Count('likes', distinct=True)).order_by('-likes__count')
 
 
+# TODO: factorize duplicated code between FeedResource and PostResource
 class FeedResource(SearchableModelResource):
 	'''
 	A list of posts made/shared by the user himself or made/shared by the users he's following, sorted by creation date.
 	'''
+	user = fields.ForeignKey(UserResource, 'user', full=True)
+	in_reply_to = fields.ForeignKey('microblog_app.api.PostResource', 'in_reply_to', null=True, blank=True)
+
+	likes = fields.IntegerField(attribute='liked_by_count', readonly=True)
+	shares = fields.IntegerField(attribute='shared_by_count', readonly=True)
+	replies = fields.IntegerField(attribute='replies_count', readonly=True)
+
+	liked_by_current_user = fields.BooleanField(readonly=True)
+	shared_by_current_user = fields.BooleanField(readonly=True)
+
 	class Meta:
 		queryset = Post.objects.all()
 		resource_name = 'feed'
@@ -366,6 +377,12 @@ class FeedResource(SearchableModelResource):
 	def base_query_set(self, request):
 		objects = self.get_object_list(request)
 		return self.apply_authorization_limits(request, objects)
+
+	def dehydrate_liked_by_current_user(self, bundle):
+		return Like.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
+
+	def dehydrate_shared_by_current_user(self, bundle):
+		return Share.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
 
 
 class FollowResource(ModelResource):
