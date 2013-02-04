@@ -307,7 +307,7 @@ class PostResource(SearchableModelResource):
 	shared_by_current_user = fields.BooleanField(readonly=True)
 
 	class Meta:
-		queryset = Post.objects.all()
+		queryset = Post.objects.select_related('user').all()
 		resource_name = 'post'
 		authentication = MicroblogApiKeyAuthentication()
 		authorization = Authorization()
@@ -349,7 +349,7 @@ class FeedResource(SearchableModelResource):
 	shared_by_current_user = fields.BooleanField(readonly=True)
 
 	class Meta:
-		queryset = Post.objects.all()
+		queryset = Post.objects.select_related('user').all()
 		resource_name = 'feed'
 		authentication = MicroblogApiKeyAuthentication()
 		authorization = Authorization()
