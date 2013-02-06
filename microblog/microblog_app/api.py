@@ -260,7 +260,7 @@ class UserResource(SearchableModelResource):
 		authentication = MicroblogApiKeyAuthentication(public_methods=['POST'])
 		authorization = Authorization()
 		filtering = {
-			"username": ('exact',), # Needed for ApiKeyAuthorization to work.
+			"username": ('exact',),
 		}
 
 	@transaction.commit_on_success # TODO: enforce this at DB level instead of API level.
