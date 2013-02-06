@@ -226,7 +226,9 @@ class SearchableModelResource(ModelResource):
 		results = self.customize_query_set(results, request)
 
 		# Paginate the results.
-		paginator = self._meta.paginator_class(request.GET, results, resource_uri=self.get_resource_list_uri(), limit=self._meta.limit)
+		# TODO: Check if possible to reuse URI form override_urls
+		search_uri = '%ssearch%s' % (self.get_resource_list_uri(), trailing_slash())
+		paginator = self._meta.paginator_class(request.GET, results, resource_uri=search_uri, limit=self._meta.limit)
 
 		# Create response
 		bundles = []
