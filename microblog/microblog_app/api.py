@@ -247,8 +247,8 @@ class SearchableModelResource(ModelResource):
 
 
 class UserResource(SearchableModelResource):
-	followers = fields.IntegerField(attribute='followers_count', readonly=True)
-	following = fields.IntegerField(attribute='following_count', readonly=True)
+	followers_count = fields.IntegerField(attribute='followers_count', readonly=True)
+	following_count = fields.IntegerField(attribute='following_count', readonly=True)
 	posts_count = fields.IntegerField(attribute='posts_count', readonly=True)
 
 	followed_by_current_user = fields.BooleanField(readonly=True)
@@ -301,9 +301,9 @@ class PostResource(SearchableModelResource):
 	user = fields.ForeignKey(UserResource, 'user', full=True)
 	in_reply_to = fields.ForeignKey('microblog_app.api.PostResource', 'in_reply_to', null=True, blank=True)
 
-	likes = fields.IntegerField(attribute='liked_by_count', readonly=True)
-	shares = fields.IntegerField(attribute='shared_by_count', readonly=True)
-	replies = fields.IntegerField(attribute='replies_count', readonly=True)
+	likes_count = fields.IntegerField(attribute='liked_by_count', readonly=True)
+	shares_count = fields.IntegerField(attribute='shared_by_count', readonly=True)
+	replies_count = fields.IntegerField(attribute='replies_count', readonly=True)
 
 	liked_by_current_user = fields.BooleanField(readonly=True)
 	shared_by_current_user = fields.BooleanField(readonly=True)
@@ -343,9 +343,9 @@ class FeedResource(SearchableModelResource):
 	user = fields.ForeignKey(UserResource, 'user', full=True)
 	in_reply_to = fields.ForeignKey('microblog_app.api.PostResource', 'in_reply_to', null=True, blank=True)
 
-	likes = fields.IntegerField(attribute='liked_by_count', readonly=True)
-	shares = fields.IntegerField(attribute='shared_by_count', readonly=True)
-	replies = fields.IntegerField(attribute='replies_count', readonly=True)
+	likes_count = fields.IntegerField(attribute='liked_by_count', readonly=True)
+	shares_count = fields.IntegerField(attribute='shared_by_count', readonly=True)
+	replies_count = fields.IntegerField(attribute='replies_count', readonly=True)
 
 	liked_by_current_user = fields.BooleanField(readonly=True)
 	shared_by_current_user = fields.BooleanField(readonly=True)
