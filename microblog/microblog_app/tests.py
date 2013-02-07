@@ -70,14 +70,14 @@ class BaseTestCase(TestCase):
 class UserTest(BaseTestCase):
 
     def test_full_name(self):
-    	u = User(first_name="John", last_name="Doe")
+        u = User(first_name="John", last_name="Doe")
         self.assertEqual("John Doe", u.full_name())
     
     def test_following_count(self):
-    	self.assertEqual(1, self.u1.following_count())
-    	self.assertEqual(2, self.u2.following_count())
-    	self.assertEqual(1, self.u3.following_count())
-    	self.assertEqual(0, self.u4.following_count())
+        self.assertEqual(1, self.u1.following_count())
+        self.assertEqual(2, self.u2.following_count())
+        self.assertEqual(1, self.u3.following_count())
+        self.assertEqual(0, self.u4.following_count())
     
     def test_follwers_count(self):
         self.assertEqual(0, self.u1.followers_count())
@@ -93,7 +93,7 @@ class UserTest(BaseTestCase):
 
 
     def test_unicode(self):
-    	self.assertEqual('u1', self.u1.__unicode__())
+        self.assertEqual('u1', self.u1.__unicode__())
 
     def test_set_password(self):
         with self.assertRaises(ValidationError):
