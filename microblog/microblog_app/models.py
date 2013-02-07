@@ -7,7 +7,7 @@ from tastypie.models import create_api_key
 
 class User(auth.models.User):
 
-    follows = models.ManyToManyField('User', through='Follow', blank=True, symmetrical=False)
+    follows = models.ManyToManyField('User', through='Follow', blank=True, symmetrical=False, related_name="followers")
     likes = models.ManyToManyField('Post', through='Like', blank=True, related_name="liked_by")
     shares = models.ManyToManyField('Post', through='Share', blank=True, related_name="shared_by")
     
@@ -63,8 +63,8 @@ class Follow(models.Model):
     class Meta:
         unique_together = ("follower", "followee")      
 
-    follower = models.ForeignKey(User, related_name='following')
-    followee = models.ForeignKey(User, related_name='followers')
+    follower = models.ForeignKey(User, related_name='follows_follower')
+    followee = models.ForeignKey(User, related_name='follows_followee')
     created_date = models.DateTimeField(blank=True, auto_now_add=True)
 
     def __unicode__(self):

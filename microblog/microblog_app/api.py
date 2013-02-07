@@ -2,7 +2,8 @@ from django.conf.urls import url
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Count, Sum
 from django.core.validators import email_re
-from tastypie.http import HttpUnauthorized
+from django.core.exceptions import ObjectDoesNotExist
+from tastypie.http import HttpUnauthorized, HttpNotFound
 from tastypie.resources import ModelResource, Resource
 from tastypie import fields
 from tastypie.authentication import ApiKeyAuthentication
@@ -87,16 +88,12 @@ class MicroblogApiKeyAuthentication(ApiKeyAuthentication):
         """
 
         # check public methods
-        logger.debug('request method: '+str(request.method))
         if request.method in self.public_methods:
             return True
 
         # check authorization parameters
         try:
             user_identifier, api_key, user_identifier_type = self.extract_credentials(request)
-            logger.debug('user_identifier: '+str(user_identifier))
-            logger.debug('api_key: '+str(api_key))
-            logger.debug('user_identifier_type: '+str(user_identifier_type))
         except ValueError:
             return self._unauthorized()
 
@@ -111,8 +108,6 @@ class MicroblogApiKeyAuthentication(ApiKeyAuthentication):
         except (User.DoesNotExist, User.MultipleObjectsReturned):
             return self._unauthorized()
 
-        logger.debug('user: %s' % str(user))
-        logger.debug('user class: %s' % user.__class__.__name__)
         if not user.is_active:
             return False
 
@@ -146,18 +141,13 @@ class HaystackSearchableModelResource(ModelResource):
 
         # Paginate the results.
         paginator = self._meta.paginator_class(request.GET, sqs, resource_uri=self.get_resource_list_uri(), limit=self._meta.limit)
-        logger.debug('Paginator ready')
 
         # Create response
         bundles = []
         objects = paginator.page()['objects']
-        logger.debug('objects: '+str(objects))
         for result in objects:          
-            logger.debug('result: '+str(result))
             bundle = self.build_bundle(obj=result.object, request=request)
-            logger.debug('bundle: '+str(bundle))
             bundles.append(self.full_dehydrate(bundle))
-            logger.debug('dehydrated bundles: '+str(bundles))
          
         object_list = {
             'meta': paginator.page()['meta'],
@@ -215,7 +205,6 @@ class SearchableModelResource(ModelResource):
         return query_set
 
     def get_search(self, request, **kwargs):
-        logger.debug(str(request))
         self.method_check(request, allowed=['get'])
         self.is_authenticated(request)
         self.throttle_check(request)
@@ -297,6 +286,64 @@ class UserResource(SearchableModelResource):
     def customize_query_set(self, query_set, request):
         return query_set.annotate(Count('followers', distinct=True)).order_by('-followers__count')
 
+    def override_urls(self):
+        return [
+            url(r"^(?P<resource_name>%s)/(?P<pk>\w[\w/-]*)/followers%s$" % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_followers'), name="api_get_followers"),
+            url(r"^(?P<resource_name>%s)/(?P<pk>\w[\w/-]*)/following%s$" % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_following'), name="api_get_following"),
+        ]
+
+    def get_followers(self, request, **kwargs):
+        # Do proper checks
+        self.method_check(request, allowed=['get'])
+        self.is_authenticated(request)
+        self.throttle_check(request)
+        self.log_throttled_access(request)
+
+        # Get user
+        try:
+            user = self.cached_obj_get(request=request, **self.remove_api_resource_names(kwargs))
+        except ObjectDoesNotExist:
+            return HttpNotFound()
+        # Get followers
+        followers = user.followers.all()
+
+        # Apply pagination
+        followers_uri = '%sfollowers%s' % (self.get_resource_list_uri(), trailing_slash()) # TODO: check if there's a better way of getting the URL
+        paginator = self._meta.paginator_class(request.GET, followers, resource_uri=followers_uri, limit=self._meta.limit)
+
+        # Create response, tastypie style
+        to_be_serialized = paginator.page()
+        # Dehydrate the bundles in preparation for serialization.
+        bundles = [self.build_bundle(obj=obj, request=request) for obj in to_be_serialized['objects']]
+        to_be_serialized['objects'] = [self.full_dehydrate(bundle) for bundle in bundles]
+        return self.create_response(request, to_be_serialized)
+
+    # TODO: factorize duplicated code between this method and get_followers
+    def get_following(self, request, **kwargs):
+        # Do proper checks
+        self.method_check(request, allowed=['get'])
+        self.is_authenticated(request)
+        self.throttle_check(request)
+        self.log_throttled_access(request)
+
+        # Get user
+        try:
+            user = self.cached_obj_get(request=request, **self.remove_api_resource_names(kwargs))
+        except ObjectDoesNotExist:
+            return HttpNotFound()
+        # Get followers
+        following = user.follows.all()
+
+        # Apply pagination
+        following_uri = '%sfollowing%s' % (self.get_resource_list_uri(), trailing_slash()) # TODO: check if there's a better way of getting the URL
+        paginator = self._meta.paginator_class(request.GET, following, resource_uri=following_uri, limit=self._meta.limit)
+
+        # Create response, tastypie style
+        to_be_serialized = paginator.page()
+        # Dehydrate the bundles in preparation for serialization.
+        bundles = [self.build_bundle(obj=obj, request=request) for obj in to_be_serialized['objects']]
+        to_be_serialized['objects'] = [self.full_dehydrate(bundle) for bundle in bundles]
+        return self.create_response(request, to_be_serialized)
 
 
 class PostResource(SearchableModelResource):

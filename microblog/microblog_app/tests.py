@@ -106,6 +106,19 @@ class UserTest(BaseTestCase):
             self.u1.set_password('123')
 
         self.u1.set_password('1234')
+        self.assertTrue(self.u1.check_password('1234'))
+
+    def test_followers(self):
+        self.assertEquals([self.u2, self.u3], list(self.u4.followers.all()))
+        self.assertEquals([self.u2], list(self.u3.followers.all()))
+        self.assertEquals([self.u1], list(self.u2.followers.all()))
+        self.assertEquals([], list(self.u1.followers.all()))
+
+    def test_follows(self):
+        self.assertEquals([self.u2], list(self.u1.follows.all()))
+        self.assertEquals([self.u3, self.u4], list(self.u2.follows.all()))
+        self.assertEquals([self.u4], list(self.u3.follows.all()))
+        self.assertEquals([], list(self.u4.follows.all()))
 
 
 class PostTest(BaseTestCase):
@@ -181,10 +194,10 @@ class FollowTest(BaseTestCase):
             pass
 
     def test_non_symmetrical(self):
-        self.assertTrue(self.u1.following.filter(followee=self.u2).exists())
-        self.assertFalse(self.u2.following.filter(followee=self.u1).exists())
-        self.assertFalse(self.u1.followers.filter(follower=self.u2).exists())
-        self.assertTrue(self.u2.followers.filter(follower=self.u1).exists())
+        self.assertTrue(self.u1.follows_follower.filter(followee=self.u2).exists())
+        self.assertFalse(self.u2.follows_follower.filter(followee=self.u1).exists())
+        self.assertFalse(self.u1.follows_followee.filter(follower=self.u2).exists())
+        self.assertTrue(self.u2.follows_followee.filter(follower=self.u1).exists())
 
     def test_unique_together(self):
         follow = Follow(follower=self.u1, followee=self.u2)
