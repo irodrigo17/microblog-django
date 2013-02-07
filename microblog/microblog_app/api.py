@@ -9,6 +9,7 @@ from tastypie.authentication import ApiKeyAuthentication
 from tastypie.authorization import Authorization
 from tastypie.utils import trailing_slash
 from tastypie.paginator import Paginator
+from tastypie.constants import ALL_WITH_RELATIONS
 from haystack.query import SearchQuerySet, EmptySearchQuerySet
 from microblog_app.models import *
 import microblog_app
@@ -261,6 +262,7 @@ class UserResource(SearchableModelResource):
 		authorization = Authorization()
 		filtering = {
 			"username": ('exact',),
+			"email": ('exact',),
 		}
 
 	@transaction.commit_on_success # TODO: enforce this at DB level instead of API level.
@@ -277,7 +279,7 @@ class UserResource(SearchableModelResource):
 			raise BadRequest('The username already exists')
 		return bundle
 
-	def dehydrate_followed_by_current_user(self, bundle):
+	def dehydrate_followers_current_user(self, bundle):
 		user = bundle.request.user
 		if user is None or not isinstance(user, User) or not isinstance(bundle.obj, User):
 			return False
@@ -293,7 +295,7 @@ class UserResource(SearchableModelResource):
 		return q_objects
 
 	def customize_query_set(self, query_set, request):
-		return query_set.annotate(Count('followed_by', distinct=True)).order_by('-followed_by__count')
+		return query_set.annotate(Count('followers', distinct=True)).order_by('-followers__count')
 
 
 

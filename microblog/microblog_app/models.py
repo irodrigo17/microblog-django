@@ -15,7 +15,7 @@ class User(auth.models.User):
 		return self.follows.count()
 
 	def followers_count(self):
-		return self.followed_by.count()
+		return self.followers.count()
 
 	def posts_count(self):
 		return self.posts.count()
@@ -64,7 +64,7 @@ class Follow(models.Model):
 		unique_together = ("follower", "followee")		
 
 	follower = models.ForeignKey(User, related_name='following')
-	followee = models.ForeignKey(User, related_name='followed_by')
+	followee = models.ForeignKey(User, related_name='followers')
 	created_date = models.DateTimeField(blank=True, auto_now_add=True)
 
 	def __unicode__(self):

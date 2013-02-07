@@ -183,8 +183,8 @@ class FollowTest(BaseTestCase):
     def test_non_symmetrical(self):
         self.assertTrue(self.u1.following.filter(followee=self.u2).exists())
         self.assertFalse(self.u2.following.filter(followee=self.u1).exists())
-        self.assertFalse(self.u1.followed_by.filter(follower=self.u2).exists())
-        self.assertTrue(self.u2.followed_by.filter(follower=self.u1).exists())
+        self.assertFalse(self.u1.followers.filter(follower=self.u2).exists())
+        self.assertTrue(self.u2.followers.filter(follower=self.u1).exists())
 
     def test_unique_together(self):
         follow = Follow(follower=self.u1, followee=self.u2)
