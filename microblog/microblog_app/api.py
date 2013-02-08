@@ -268,7 +268,7 @@ class UserResource(SearchableModelResource):
             raise BadRequest('The username already exists')
         return bundle
 
-    def dehydrate_followers_current_user(self, bundle):
+    def dehydrate_followed_by_current_user(self, bundle):
         user = bundle.request.user
         if user is None or not isinstance(user, User) or not isinstance(bundle.obj, User):
             return False
