@@ -246,7 +246,7 @@ class UserResource(SearchableModelResource):
     class Meta:
         queryset = User.objects.all()
         resource_name = 'user'
-        fields = ['username', 'first_name', 'last_name', 'email', 'id']
+        fields = ['username', 'first_name', 'last_name', 'email', 'id', 'avatar_url']
         authentication = MicroblogApiKeyAuthentication(public_methods=['POST'])
         authorization = Authorization()
         filtering = {

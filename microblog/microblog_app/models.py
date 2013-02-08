@@ -10,6 +10,8 @@ class User(auth.models.User):
     follows = models.ManyToManyField('User', through='Follow', blank=True, symmetrical=False, related_name="followers")
     likes = models.ManyToManyField('Post', through='Like', blank=True, related_name="liked_by")
     shares = models.ManyToManyField('Post', through='Share', blank=True, related_name="shared_by")
+
+    avatar_url = models.URLField(blank=True)
     
     def following_count(self):
         return self.follows.count()
