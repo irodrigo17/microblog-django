@@ -308,7 +308,7 @@ class UserResource(SearchableModelResource):
         followers = user.followers.all()
 
         # Apply pagination
-        followers_uri = '%sfollowers%s' % (self.get_resource_list_uri(), trailing_slash()) # TODO: check if there's a better way of getting the URL
+        followers_uri = '%sfollowers%s' % (self.get_resource_uri(user), trailing_slash()) # TODO: check if there's a better way of getting the URL
         paginator = self._meta.paginator_class(request.GET, followers, resource_uri=followers_uri, limit=self._meta.limit)
 
         # Create response, tastypie style
@@ -335,7 +335,7 @@ class UserResource(SearchableModelResource):
         following = user.follows.all()
 
         # Apply pagination
-        following_uri = '%sfollowing%s' % (self.get_resource_list_uri(), trailing_slash()) # TODO: check if there's a better way of getting the URL
+        following_uri = '%sfollowing%s' % (self.get_resource_uri(user), trailing_slash()) # TODO: check if there's a better way of getting the URL
         paginator = self._meta.paginator_class(request.GET, following, resource_uri=following_uri, limit=self._meta.limit)
 
         # Create response, tastypie style
