@@ -287,7 +287,7 @@ class UserResource(SearchableModelResource):
         return query_set.annotate(Count('followers', distinct=True)).order_by('-followers__count')
 
     def override_urls(self):
-        return [
+        return super(UserResource, self).override_urls() + [
             url(r"^(?P<resource_name>%s)/(?P<pk>\w[\w/-]*)/followers%s$" % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_followers'), name="api_get_followers"),
             url(r"^(?P<resource_name>%s)/(?P<pk>\w[\w/-]*)/following%s$" % (self._meta.resource_name, trailing_slash()), self.wrap_view('get_following'), name="api_get_following"),
         ]
