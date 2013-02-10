@@ -222,14 +222,13 @@ class ShareTest(BaseTestCase):
 
 # API tests
 
-class FeedResourceTest(BaseTestCase):
+class PostResourceTest(BaseTestCase):
     
-    def test_apply_authorization_limits(self):
+    def test_get_feed(self):
         request = HttpRequest() # request mock
         request.user = self.u1
-        object_list = Post.objects.all() # object_list mock
-        feed_resource = FeedResource()
-        feed = feed_resource.apply_authorization_limits(request,object_list)
+        post_resource = PostResource()
+        feed = post_resource.get_feed(request)
         expected_result = [self.p11, self.p12, self.p13, self.p21, self.p22, self.p23, self.p31]
         self.assertEqual(expected_result, list(feed))
 

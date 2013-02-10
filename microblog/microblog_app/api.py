@@ -367,6 +367,46 @@ class PostResource(SearchableModelResource):
             "in_reply_to": ('exact',),
         }
 
+    def override_urls(self):
+        return super(PostResource, self).override_urls() + [
+            url(r"^feed%s$" % (trailing_slash(),), self.wrap_view('dispatch_feed'), name="api_dispatch_feed"),
+        ]
+
+    def get_feed(self, request, **kwargs):
+        objects = self.obj_get_list(request=request, **self.remove_api_resource_names(kwargs))
+        user = microblog_app.models.User.objects.get(pk=request.user.pk)
+        follows = user.follows.all()
+        return objects.filter(
+            Q(user=user) # Posts made by the user himself
+            | Q(user__in=follows) # Or posts made by an user that the user is following         
+            | Q(shares__user=user) # Or posts shared by the user himself
+            | Q(shares__user__in=follows) # Or posts shared by an user that the user is following
+        ).order_by('created_date').distinct()
+
+    def dispatch_feed(self, request, **kwargs):
+        # Do basic checks
+        self.is_authenticated(request)
+        self.is_authorized(request)
+        self.method_check(request, allowed=['get'])
+        self.throttle_check(request)
+        self.log_throttled_access(request)
+
+        # Get posts
+        objects = self.get_feed(request, **kwargs)
+
+        paginator = self._meta.paginator_class(request.GET, objects, resource_uri=self.get_resource_list_uri(), limit=self._meta.limit)
+        to_be_serialized = paginator.page()
+        next = to_be_serialized['meta'].get('next', None)
+        logger.debug('next: %s' % next)
+        if not next is None:
+            to_be_serialized['meta']['next'] = next.replace(r'/post/', r'/feed/', 1)
+
+        # Dehydrate the bundles in preparation for serialization.
+        bundles = [self.build_bundle(obj=obj, request=request) for obj in to_be_serialized['objects']]
+        to_be_serialized['objects'] = [self.full_dehydrate(bundle) for bundle in bundles]
+        to_be_serialized = self.alter_list_data_to_serialize(request, to_be_serialized)
+        return self.create_response(request, to_be_serialized)
+
     def dehydrate_liked_by_current_user(self, bundle):
         return Like.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
 
@@ -382,58 +422,6 @@ class PostResource(SearchableModelResource):
 
     def customize_query_set(self, query_set, request):
         return query_set.annotate(Count('likes', distinct=True)).order_by('-likes__count')
-
-
-# TODO: factorize duplicated code between FeedResource and PostResource
-class FeedResource(SearchableModelResource):
-    '''
-    A list of posts made/shared by the user himself or made/shared by the users he's following, sorted by creation date.
-    '''
-    user = fields.ForeignKey(UserResource, 'user', full=True)
-    in_reply_to = fields.ForeignKey('microblog_app.api.PostResource', 'in_reply_to', null=True, blank=True)
-
-    likes_count = fields.IntegerField(attribute='liked_by_count', readonly=True)
-    shares_count = fields.IntegerField(attribute='shared_by_count', readonly=True)
-    replies_count = fields.IntegerField(attribute='replies_count', readonly=True)
-
-    liked_by_current_user = fields.BooleanField(readonly=True)
-    shared_by_current_user = fields.BooleanField(readonly=True)
-
-    class Meta:
-        queryset = Post.objects.select_related('user').all()
-        resource_name = 'feed'
-        authentication = MicroblogApiKeyAuthentication()
-        authorization = Authorization()
-        list_allowed_methods = ['get']
-
-    def apply_authorization_limits(self, request, object_list):
-        user = microblog_app.models.User.objects.get(pk=request.user.pk)
-        follows = user.follows.all()
-        return object_list.filter(
-            Q(user=user) # Posts made by the user himself
-            | Q(user__in=follows) # Or posts made by an user that the user is following         
-            | Q(shares__user=user) # Or posts shared by the user himself
-            | Q(shares__user__in=follows) # Or posts shared by an user that the user is following
-        ).order_by('created_date').distinct()
-
-    def get_q_objects(self, terms):
-        q_objects = []
-        for term in terms:
-            q_objects.append(Q(text__icontains=term))
-        return q_objects
-
-    def customize_query_set(self, query_set, request):
-        return query_set.annotate(Count('likes', distinct=True)).order_by('-likes__count')
-
-    def base_query_set(self, request):
-        objects = self.get_object_list(request)
-        return self.apply_authorization_limits(request, objects)
-
-    def dehydrate_liked_by_current_user(self, bundle):
-        return Like.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
-
-    def dehydrate_shared_by_current_user(self, bundle):
-        return Share.objects.filter(user=bundle.request.user, post=bundle.obj).exists()
 
 
 class FollowResource(ModelResource):
