@@ -29,7 +29,8 @@ def load():
             username = 'user' + str(u), 
             first_name='First'+str(u), 
             last_name='Last'+str(u),
-            email='user'+str(u)+'@email.com')
+            email='user'+str(u)+'@email.com',
+            avatar_url="http://www.co.adams.co.us/Assets/Images/ProfilePlaceholder250x250.png")
         user.set_password('pass')
         user.save()
         users.append(user)
