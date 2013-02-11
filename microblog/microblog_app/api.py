@@ -268,6 +268,26 @@ class UserResource(SearchableModelResource):
             raise BadRequest('The username already exists')
         return bundle
 
+    def obj_update(self, bundle, request=None, **kwargs):
+        """
+        Overriding this method to be able to update password.
+        """
+        updated_bundle = super(UserResource, self).obj_update(bundle, request, **kwargs)
+        old_pass = bundle.data.get('old_pass', None)
+        new_pass = bundle.data.get('new_pass', None)
+        logger.debug('old_pass: %s' % old_pass)
+        logger.debug('new_pass: %s' % new_pass)
+        logger.debug('bundle: %s' % bundle)
+        logger.debug('updated_bundle: %s' % updated_bundle)
+        if not (old_pass is None or new_pass is None):
+            user = updated_bundle.obj
+            if not user.check_password(old_pass):
+                raise BadRequest("Password doesn't match")
+            else:                
+                user.set_password(new_pass)
+                user.save()
+        return updated_bundle        
+
     def dehydrate_followed_by_current_user(self, bundle):
         user = bundle.request.user
         if user is None or not isinstance(user, User) or not isinstance(bundle.obj, User):
