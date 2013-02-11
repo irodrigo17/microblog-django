@@ -536,16 +536,13 @@ class LoginResource(Resource):
             else:
                 user = User.objects.get(email=email)
         except User.DoesNotExist:
-            return self.create_response(request, 'Invalid user.',
-                                        http.HttpUnauthorized)
+            return HttpUnauthorized('Invalid user.')
 
         if not user.is_active:
-            return self.create_response(request, 'Your account is disabled.',
-                                        http.HttpUnauthorized)
+            return HttpUnauthorized('Your account is disabled.')
 
         if not user.check_password(password):
-            return self.create_response(request, 'Incorrect password.',
-                                        http.HttpUnauthorized)
+            return HttpUnauthorized('Incorrect password.')
 
         api_key = user.api_key
 
