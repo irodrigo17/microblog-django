@@ -163,6 +163,15 @@ HAYSTACK_CONNECTIONS = {
     },
 }
 
+# Email settings
+EMAIL_HOST = 'smtp.mandrillapp.com'
+EMAIL_PORT = 587
+EMAIL_HOST_USER = 'irodrigo17@gmail.com'
+EMAIL_HOST_PASSWORD = 'YVkp1MTApDjLZWGbJVmDOQ'
+
+
+# Messages settings
+# MESSAGE_STORAGE = 'django.contrib.messages.storage.cookie.CookieStorage'
 
 # Import any local settings
 try:

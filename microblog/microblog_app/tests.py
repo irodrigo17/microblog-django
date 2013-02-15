@@ -220,6 +220,52 @@ class ShareTest(BaseTestCase):
         self.assertEquals(self.s231.__unicode__(), 'u2 shares p31')
 
 
+class LostPasswordTest(BaseTestCase):
+
+    def test_save(self): # TODO: mock email service someway so tests don't deppend on it
+        # bad email, no password
+        try:
+            LostPassword(email='bad@email.com').save()
+            self.fail('Should have thrown an exception if no user with the given email')
+        except User.DoesNotExist:
+            pass
+
+        # bad email, set password
+        try:
+            LostPassword(email='bad@email.com', new_password='password').save()
+            self.fail('Should have thrown an exception if no user with the given email')
+        except User.DoesNotExist:
+            pass
+
+        # good email, no password
+        lost_password = LostPassword(email='u1@email.com')
+        lost_password.save()
+        self.assertTrue(lost_password.id > 0)
+        self.assertTrue(len(lost_password.uuid) > 0)
+        self.assertEquals(1, LostPassword.objects.count())
+
+        lost_password = LostPassword(email='u1@email.com')
+        lost_password.save()
+        self.assertTrue(lost_password.id > 0)
+        self.assertTrue(len(lost_password.uuid) > 0)
+        self.assertEquals(1, LostPassword.objects.count(), "Any previous instances for the same email should be deleted")
+
+        # good email, set password
+        user = User(username='lost_password', email='lost_password@email.com')
+        user.set_password('1234')
+        user.save()
+        lost_password = LostPassword(email=user.email)
+        lost_password.save()
+        self.assertEquals(2, LostPassword.objects.count())
+        lost_password.new_password = 'pass'
+        lost_password.save()
+        user = User.objects.get(pk=user.pk)
+        self.assertTrue(user.check_password(lost_password.new_password))
+        self.assertEquals(1, LostPassword.objects.count())
+        self.assertEquals(0, LostPassword.objects.filter(email=user.email).count(), "Any instances with the given email should have been deleted")
+
+
+
 # API tests
 
 class PostResourceTest(BaseTestCase):

@@ -1,12 +1,16 @@
+from datetime import timedelta
+import logging
+import operator
 from django.conf.urls import url
 from django.db import IntegrityError, transaction
 from django.db.models import Q, Count, Sum
+from django.conf import settings
 from django.core.validators import email_re
 from django.core.exceptions import ObjectDoesNotExist
 from tastypie.http import HttpUnauthorized, HttpNotFound
 from tastypie.resources import ModelResource, Resource
 from tastypie import fields
-from tastypie.authentication import ApiKeyAuthentication
+from tastypie.authentication import ApiKeyAuthentication, Authentication
 from tastypie.authorization import Authorization
 from tastypie.utils import trailing_slash
 from tastypie.paginator import Paginator
@@ -14,8 +18,6 @@ from tastypie.constants import ALL_WITH_RELATIONS
 from haystack.query import SearchQuerySet, EmptySearchQuerySet
 from microblog_app.models import *
 import microblog_app
-import logging
-import operator
 
 
 # Get an instance of a logger
@@ -553,3 +555,48 @@ class LoginResource(Resource):
         }
 
         return self.create_response(request, response_data)
+
+
+class LostPasswordResource(ModelResource):
+    """
+    Used for password reset.
+    """
+
+    class Meta:
+        resource_name = 'lostpassword'
+        queryset = LostPassword.objects.all()
+        authorization = Authorization()
+        authentication = Authentication()
+        fields = ['uuid', 'email', 'new_password']
+        list_allowed_methods = ['post']
+        detail_allowed_methods = []
+
+    def prepend_urls(self):
+        return [
+            url(r"^(?P<resource_name>%s)/(?P<uuid>[\w\d_.-]+)/$" % self._meta.resource_name, self.wrap_view('dispatch_detail'), name="api_dispatch_detail"),
+        ]
+
+    def get_object_list(self, request):
+        """
+        Override, to do a per-request alteration to the Queryset.
+        """
+        qs = super(LostPasswordResource, self).get_object_list(request)
+        hours = getattr(settings, 'LOSTPASSWORD_TOKEN_EXPIRATION', 48)
+        return qs.filter(created__gte=now() - timedelta(hours=hours))
+
+    def post_list(self, request, **kwargs):
+        """
+        Override so we do *not* return Location when creating, for security
+        purposes (code will be in the email received by the user).
+        """
+        resp = super(LostPasswordResource, self).post_list(request, **kwargs)
+        del resp['Location']
+        return resp
+
+    def dehydrate(self, bundle):
+        """
+        Manually remove the new_password field. We included it in fields so
+        TastyPie populates it when doing PUT/PATCH.
+        """
+        del bundle.data['new_password']
+        return bundle

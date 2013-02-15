@@ -2,7 +2,9 @@ from django.db import models
 from django.contrib import auth
 from django.core.exceptions import ValidationError
 from django.utils.timezone import now
+from django.core.mail import send_mail
 from tastypie.models import create_api_key
+from uuidfield import UUIDField
 
 
 class User(auth.models.User):
@@ -105,4 +107,38 @@ class Share(models.Model):
 
     def __unicode__(self):
         return str(self.user) + ' shares ' + str(self.post)
+
+class LostPassword(models.Model):
+    """
+    Encapsulates the unique identifiers generated to reset passwords of users
+    in the system.
+    """
+    email = models.EmailField(null=True, unique=True)
+    uuid = UUIDField(auto=True)
+    new_password = models.CharField(max_length=128, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        user = User.objects.get(email=self.email)
+        if not self.new_password:
+            # Delete any previous instances for the same email and save the new one
+            LostPassword.objects.filter(email=self.email).delete()
+            super(LostPassword, self).save(*args, **kwargs)
+            # Send mail
+            # TODO: correct password reset link and use uuid instead of pk
+            link = 'http://localhost:5000/resetpassword/?uuid=%s' % self.uuid
+            send_mail(
+                'Reset password',
+                'Click the following link to reset your password\n\n%s' % link,
+                'irodrigo17@gmail.com',
+                [self.email],
+                fail_silently=False)
+        else:
+            # Do password reset of the user and delete the LostPassword object
+            user.set_password(self.new_password)
+            user.save()
+            LostPassword.objects.filter(email=self.email).delete()
+
+    def __unicode__(self):
+        return self.email
 

@@ -14,6 +14,7 @@ v1_api.register(FollowResource())
 v1_api.register(LikeResource())
 v1_api.register(ShareResource())
 v1_api.register(LoginResource())
+v1_api.register(LostPasswordResource())
 
 # define URL patterns
 urlpatterns = patterns('',
@@ -26,4 +27,7 @@ urlpatterns = patterns('',
 
     url(r'^admin/', include(admin.site.urls)),
     url(r'^api/', include(v1_api.urls)),
+    url(r'^resetpassword/', "microblog_app.views.reset_password"),
+    url(r'^updatepassword/', "microblog_app.views.update_password"),
+    url(r'^resetpasswordresult/', "microblog_app.views.reset_password_result"),
 )
